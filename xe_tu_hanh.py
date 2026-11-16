@@ -21,9 +21,5 @@ if __name__ == '__main__':
     ap.add_argument('--toi-da', type=float, default=tham_so.THOI_GIAN_TOI_DA, help='tự dừng sau bấy nhiêu giây')
     a = ap.parse_args()
     tham_so.THOI_GIAN_TOI_DA = a.toi_da
-    xe = None
-    if a.gia_lap:     # sa bàn giả cho xe ngóc mũi theo tốc độ như xe thật, khớp phần bù trong tham_so
-        from chung.gia_lap import XeGiaLap
-        xe = XeGiaLap(can_camera=True, nhanh=a.nhanh, he_so_toc_do=tham_so.NGOC_MUI_DO)
-    ma, _ = khung.chay('tu_hanh.lai_xe', gia_lap=a.gia_lap, ghi_bag=not a.khong_ghi, nhanh=a.nhanh, xe=xe)
+    ma, _ = khung.chay('tu_hanh.lai_xe', gia_lap=a.gia_lap, ghi_bag=not a.khong_ghi, nhanh=a.nhanh)
     sys.exit(ma)

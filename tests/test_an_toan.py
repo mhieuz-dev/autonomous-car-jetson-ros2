@@ -13,7 +13,7 @@ from tu_hanh import tham_so as TS  # noqa: E402
 def test_chan_mui_dung_roi_chay_tiep(monkeypatch):
     monkeypatch.setattr(cau_hinh, 'CHAN_MUI_BAT', True)
     monkeypatch.setattr(TS, 'V_BAM_VACH', 0.15)          # mốc thời gian của bài này tính theo 0.15 m/s
-    xe = XeGiaLap(can_camera=True, nhanh=True, he_so_toc_do=TS.NGOC_MUI_DO, co_nguoi=False)
+    xe = XeGiaLap(can_camera=True, nhanh=True, co_nguoi=False)
     xe.x, xe.y, xe.yaw = 5.0, 1.6, math.pi / 2          # sau hầm, giữa làn phải
     xe.vat_them = [(5.0, 2.35, 0.05, 0.0, 9.0)]          # hộp chắn ngay trên làn, mất ở giây 9
     y = []
@@ -29,7 +29,7 @@ def test_chan_mui_dung_roi_chay_tiep(monkeypatch):
 
 def test_ham_ket_thi_lui_roi_di_tiep(monkeypatch):
     monkeypatch.setattr(TS, 'GO_KET_BAT', True)
-    xe = XeGiaLap(can_camera=True, nhanh=True, he_so_toc_do=TS.NGOC_MUI_DO, co_nguoi=False)
+    xe = XeGiaLap(can_camera=True, nhanh=True, co_nguoi=False)
     xe.x, xe.y, xe.yaw = 4.8, 0.9, math.pi / 2          # trong đoạn hầm thẳng sau khúc cua
     xe.ket_den = 4.5                                     # 2 s đầu (sau hiệu chuẩn) bánh không lăn
     lenh = []

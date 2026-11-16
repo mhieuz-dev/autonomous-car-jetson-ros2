@@ -14,7 +14,7 @@ from tu_hanh import tham_so as TS  # noqa: E402
 
 def chay(xe=None, toi_da=120.0, **sa_ban):
     """Chạy tới cuối đường giả (hoặc hết toi_da giây). Trả (ctx, xe, vết [t, s, lệch ngang, v])."""
-    xe = xe or XeGiaLap(can_camera=True, nhanh=True, he_so_toc_do=TS.NGOC_MUI_DO, **sa_ban)
+    xe = xe or XeGiaLap(can_camera=True, nhanh=True, **sa_ban)
     vet = []
     gui = xe.gui
 
@@ -110,7 +110,7 @@ def test_san_phang_chay_nhanh_khong_bi_bao_la_doc(monkeypatch):
 
 
 def _xe_sau_ham(den_lich):
-    xe = XeGiaLap(can_camera=True, nhanh=True, he_so_toc_do=TS.NGOC_MUI_DO, co_nguoi=False)
+    xe = XeGiaLap(can_camera=True, nhanh=True, co_nguoi=False)
     xe.x, xe.y, xe.yaw = 5.0, 1.6, math.pi / 2             # đặt xe giữa đường, sau hầm, giữa làn phải
     xe.den_lich = den_lich
     return xe

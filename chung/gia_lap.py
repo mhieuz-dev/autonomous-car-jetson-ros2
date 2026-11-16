@@ -56,12 +56,12 @@ class XeGiaLap:
     gia_lap = True
 
     def __init__(self, can_camera=False, nhanh=False, t_nguoi=3.0, co_nguoi=True, w_troi=0.03,
-                 doc_len=6.0, doc_xuong=-5.0, he_so_toc_do=0.0, doan_doc=None, ham=(4.0, 6.485)):
+                 doc_len=6.0, doc_xuong=-5.0, he_so_toc_do=30.0, doan_doc=None, ham=(4.0, 6.485)):
         # [(s đầu, s cuối, độ dốc)] dọc tim đường; mặc định dốc lên rồi xuống ngay trước hầm
         self.doan_doc = doan_doc if doan_doc is not None else [(2.0, 2.7, doc_len), (3.3, 3.8, doc_xuong)]
         self.ham = ham           # (s vào, s ra) của hầm, None = sa bàn không có hầm
         self.den_lich = []       # [(t_bat_dau, t_ket_thuc, 'den do'|'den vang'|'den xanh', cao_px)] đèn dọc đường (giả lập)
-        self.he_so_toc_do = he_so_toc_do     # xe ngóc mũi thêm he_so * v^2 độ khi chạy (xe thật: ~30)
+        self.he_so_toc_do = he_so_toc_do     # xe ngóc mũi thêm he_so * v^2 độ khi chạy (xe thật ~30, log 10/10)
         self.nhanh = nhanh
         self.t = 0.0
         self.imu = None

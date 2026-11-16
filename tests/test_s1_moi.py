@@ -3,10 +3,20 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from chung import khung  # noqa: E402
 from chung.den_onnx import mau_den_lon  # noqa: E402
 from chung.gia_lap import XeGiaLap  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _toc_do_cua_kich_ban(monkeypatch):
+    """Mốc thời gian đèn/biển trong các kịch bản dưới đây được viết cho V_CHAY = 0,30 m/s.
+    Thông số chạy thật đã chỉnh lên 0,5 m/s, nên ghim lại tốc độ của kịch bản."""
+    import giai_doan.s1_xuat_phat as S1
+    monkeypatch.setattr(S1, 'V_CHAY', 0.30)
 
 
 def _chay(den_lich, ds=('s0_den_xanh', 's1_xuat_phat'), t_s1=None):

@@ -24,6 +24,7 @@ def test_san_phang_chay_nhanh_khong_bi_bao_la_doc(monkeypatch):
     """Lỗi 10/10: sàn PHẲNG, xe 0,30 m/s ngóc mũi +2,7 độ, S1 báo 'tới chân dốc' sau 0,44 m."""
     import giai_doan.s1_xuat_phat as S1
     monkeypatch.setattr(S1, 'THOI_GIAN_TOI_DA', 14.0)
+    monkeypatch.setattr(S1, 'V_CHAY', 0.30)            # hệ số ngóc mũi 30 x v^2 được đo ở 0,30 m/s
     xe = XeGiaLap(can_camera=True, nhanh=True, co_nguoi=False, doc_len=0.0, doc_xuong=0.0, he_so_toc_do=40.0)
     ma, ctx = khung.chay(['s0_den_xanh', 's1_xuat_phat'], gia_lap=True, nhanh=True, xem_cong=None, xe=xe)
     ly_do = ctx.du_lieu['lich_su'][-1][1]

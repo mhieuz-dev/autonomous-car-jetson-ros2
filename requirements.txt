@@ -1,6 +1,7 @@
-numpy
-opencv-python-headless
+# Kiểm thử trên laptop (Python 3.10+). Phiên bản đã chạy hết test:
+numpy==2.2.6
+opencv-python-headless==4.10.0.84   # OpenCV 5.x đổi API, làm hỏng vài bộ dò vạch/bird's eye
 pyyaml
 onnxruntime
 pytest
-# rclpy: dung ban ROS 2 Humble he thong (source /opt/ros/humble/setup.bash)
+# rclpy: dùng bản ROS 2 Humble của hệ thống (source /opt/ros/humble/setup.bash), chỉ cần trên xe

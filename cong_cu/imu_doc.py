@@ -151,7 +151,7 @@ def bang_chu(st):
     return dong
 
 
-class GiaiDoan(khung.GiaiDoanCoSo):
+class ChuongTrinh(khung.ChuongTrinhCoSo):
     TEN = 'imu_doc'
     HZ = 20
     CAN_CAMERA = False
@@ -297,8 +297,8 @@ def main():
     ap.add_argument('--nhanh', action='store_true', help='giả lập chạy nhanh hết cỡ')
     a = ap.parse_args()
     import cong_cu.imu_doc as modul          # chay() nạp 'cong_cu.imu_doc': đặt cờ ở đúng bản đó, không phải bản __main__
-    modul.GiaiDoan.TAY = a.tay
-    ma, _ = khung.chay(['cong_cu.imu_doc'], gia_lap=a.gia_lap, ghi_bag=False, nhanh=a.nhanh)
+    modul.ChuongTrinh.TAY = a.tay
+    ma, _ = khung.chay('cong_cu.imu_doc', gia_lap=a.gia_lap, ghi_bag=False, nhanh=a.nhanh)
     sys.exit(ma)
 
 

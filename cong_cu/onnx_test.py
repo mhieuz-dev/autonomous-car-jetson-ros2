@@ -119,7 +119,7 @@ def main():
             if c.xem:
                 c.xem.dat_jpeg('cam', jpeg)   # ảnh thô cho ô ROI trên bảng điều khiển
                 c.xem.dat_anh('onnx', ve_ket_qua(bgr, kq, (0, 0), vung, chi_vung=True), luon=True)
-                c.xem.cap_nhat(giai_doan='onnx_test', chi_tiet=f'{bo.ten} {ms:.0f} ms')
+                c.xem.cap_nhat(chuong_trinh='onnx_test', chi_tiet=f'{bo.ten} {ms:.0f} ms')
             if n != n_log and time.monotonic() - t_log > 1.0:
                 t_log, n_log = time.monotonic(), n
                 log(f'{ms:4.0f} ms | ' + (', '.join(f'{d["ten"]} {d["tin"]:.2f}' for d in kq) or 'không thấy gì'))

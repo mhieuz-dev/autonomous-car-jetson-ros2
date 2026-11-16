@@ -15,8 +15,8 @@ def _ctx(pitch_do, qd=0.0, t=1.0):
 
 
 def test_nhac_xe_thi_bo_mau_o_che_do_tay(monkeypatch):
-    monkeypatch.setattr(D.GiaiDoan, 'TAY', True)
-    gd = D.GiaiDoan()
+    monkeypatch.setattr(D.ChuongTrinh, 'TAY', True)
+    gd = D.ChuongTrinh()
     for p in (0.0, 3.0, -2.0):
         gd.buoc(_ctx(p), 0.05)
     for p in (-18.7, -43.0, -88.0, 25.0):                      # nhấc / lật
@@ -25,7 +25,7 @@ def test_nhac_xe_thi_bo_mau_o_che_do_tay(monkeypatch):
 
 
 def test_nhac_xe_khi_tu_chay_thi_dung(monkeypatch):
-    monkeypatch.setattr(D.GiaiDoan, 'TAY', False)
-    gd = D.GiaiDoan()
+    monkeypatch.setattr(D.ChuongTrinh, 'TAY', False)
+    gd = D.ChuongTrinh()
     kq = gd.buoc(_ctx(30.0), 0.05)
     assert hasattr(kq, 'ly_do') and 'nhấc' in kq.ly_do

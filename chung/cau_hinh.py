@@ -35,7 +35,7 @@ CALIB_MOI = GOC / 'calib_moi'         # calib vừa đo trên xe, chờ duyệt 
 MODEL_ONNX = GOC / 'models' / 'best.onnx'
 MODEL_ENGINE = GOC / 'models' / 'best.engine'
 
-# Vòng gyro (chung cho mọi giai đoạn): bù cho bánh lệch / trượt bằng gyro z.
+# Vòng gyro (chung cho mọi chương trình lái): bù cho bánh lệch / trượt bằng gyro z.
 # Bản cũ chạy cái này trên xe (imu_yaw_loop.py, kp 0.5). Tắt = BAT_VONG_GYRO False.
 BAT_VONG_GYRO = True
 GYRO_KP = 0.5

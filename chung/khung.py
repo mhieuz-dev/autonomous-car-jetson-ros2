@@ -1,15 +1,15 @@
-"""Khung chạy giai đoạn: mở xe, hiệu chuẩn IMU, chạy lần lượt từng giai đoạn.
+"""Khung chạy một chương trình lái: mở xe, hiệu chuẩn IMU, gọi chương trình mỗi nhịp, dừng xe an toàn.
 
-Mỗi giai đoạn (giai_doan/sX_*.py) là một lớp GiaiDoan với:
+Chương trình (tu_hanh/lai_xe.py, cong_cu/imu_doc.py) là module có lớp ChuongTrinh với:
     TEN, HZ, THOI_GIAN_TOI_DA, CAN_CAMERA
-    bat_dau(ctx)          gọi 1 lần lúc vào giai đoạn
+    bat_dau(ctx)          gọi 1 lần lúc bắt đầu
     buoc(ctx, dt)         trả (v, w), (v, w, 'gap') = đặt ngay không qua giới hạn
                           gia tốc (dừng gấp), hoặc KetThuc(...)
     trang_thai()          chuỗi ngắn đưa vào log
     ve(ctx)               (tuỳ chọn) đặt hình lên trang xem
 Khung lo: kiểm cảm biến, dừng khẩn (Ctrl+C / file /tmp/champion_dung / mất
-cảm biến), giới hạn gia tốc, log mỗi 0,5 s, ghi bag, gửi trạng thái lên trang xem.
-Khi qua giai đoạn mới, đối tượng giai đoạn cũ bị bỏ: logic cũ KHÔNG chạy nữa.
+cảm biến), giới hạn gia tốc, vòng gyro, chặn sát mũi, log mỗi 0,5 s, ghi bag,
+gửi trạng thái lên trang xem.
 """
 import importlib
 import math
@@ -25,13 +25,12 @@ from .pid import GioiHan, VongGyro
 
 
 class KetThuc:
-    def __init__(self, ly_do, tiep=None, dung_han=False):
+    def __init__(self, ly_do, dung_han=False):
         self.ly_do = ly_do
-        self.tiep = tiep            # tên giai đoạn nhảy tới (None = giai đoạn kế)
-        self.dung_han = dung_han    # True = dừng cả lượt chạy
+        self.dung_han = dung_han    # True = dừng vì sự cố (mã thoát 1), False = xong việc
 
 
-class GiaiDoanCoSo:
+class ChuongTrinhCoSo:
     TEN = '?'
     HZ = 20
     THOI_GIAN_TOI_DA = 60.0
@@ -51,21 +50,20 @@ class GiaiDoanCoSo:
         pass
 
     def ket_thuc(self, ctx, ly_do):
-        """Gọi khi giai đoạn kết thúc vì BẤT KỲ lý do nào (xong, dừng tay, hết giờ, mất cảm biến)."""
+        """Gọi khi chương trình kết thúc vì BẤT KỲ lý do nào (xong, dừng tay, hết giờ, mất cảm biến)."""
         pass
 
 
 class NguCanh:
     def __init__(self, xe, imu, xem, gia_lap):
         self.xe, self.imu, self.xem, self.gia_lap = xe, imu, xem, gia_lap
-        self.du_lieu = {}           # giai đoạn trước để lại cho giai đoạn sau
-        self.v_cuoi = self.w_cuoi = 0.0
+        self.du_lieu = {}           # chương trình ghi lại để xem sau / test đọc
         self.chan_mui = self._chan_mui_cu = False
         self._qd0 = 0.0
         self.t0 = 0.0
 
     def quang_duong(self):
-        """Mét đã chạy từ đầu giai đoạn hiện tại (odom)."""
+        """Mét đã chạy từ lúc chương trình bắt đầu (odom)."""
         return self.xe.odom.quang_duong - self._qd0
 
     def thoi_gian(self):
@@ -135,7 +133,6 @@ def _ghi_bag(ten):
 def _chay_mot(gd, ctx):
     xe = ctx.xe
     gh = GioiHan(**gd.GIOI_HAN)
-    gh.dat_lai(ctx.v_cuoi, ctx.w_cuoi)
     gyro = VongGyro(cau_hinh.GYRO_KP, cau_hinh.GYRO_KI, cau_hinh.GYRO_I_MAX) if cau_hinh.BAT_VONG_GYRO else None
     ctx._qd0 = xe.odom.quang_duong
     ctx.t0 = xe.gio()
@@ -160,7 +157,6 @@ def _chay_mot(gd, ctx):
             return KetThuc(f'quá thời gian tối đa {gd.THOI_GIAN_TOI_DA:.0f} s', dung_han=True)
         kq = gd.buoc(ctx, dt)
         if isinstance(kq, KetThuc):
-            ctx.v_cuoi, ctx.w_cuoi = gh.v, gh.w
             return kq
         ctx.chan_mui = False
         if cau_hinh.CHAN_MUI_BAT and kq[0] > 0.0:
@@ -183,7 +179,7 @@ def _chay_mot(gd, ctx):
         imu = ctx.imu
         tt = gd.trang_thai()
         if ctx.xem is not None:
-            ctx.xem.cap_nhat(giai_doan=gd.TEN, v=round(v, 3), w=round(w, 3),
+            ctx.xem.cap_nhat(chuong_trinh=gd.TEN, v=round(v, 3), w=round(w, 3),
                              yaw=round(math.degrees(imu.yaw), 1), pitch=round(math.degrees(imu.pitch), 2),
                              roll=round(math.degrees(imu.roll), 2), quang_duong=round(ctx.quang_duong(), 2),
                              t=round(ctx.thoi_gian(), 1), chi_tiet=tt)
@@ -208,31 +204,25 @@ def chay_mot(gd, ctx):
     return kq
 
 
-def _lop(mod):
-    """Lớp chạy được trong module: ChuongTrinh (tu_hanh/lai_xe.py) hoặc GiaiDoan (giai_doan/, cong_cu/imu_doc.py)."""
-    return getattr(mod, 'ChuongTrinh', None) or mod.GiaiDoan
-
-
-def chay(ds_ten, gia_lap=False, ghi_bag=True, nhanh=False, xem_cong=cau_hinh.CONG_XEM, xe=None):
-    """Chạy lần lượt các giai đoạn trong ds_ten. Trả (mã thoát, ngữ cảnh)."""
+def chay(ten, gia_lap=False, ghi_bag=True, nhanh=False, xem_cong=cau_hinh.CONG_XEM, xe=None):
+    """Chạy chương trình trong module `ten` (vd 'tu_hanh.lai_xe') tới khi xong / dừng. Trả (mã thoát, ngữ cảnh)."""
     _bat_tin_hieu()
     _DUNG['co'] = False
     try:
         cau_hinh.FILE_DUNG.unlink()
     except OSError:
         pass
-    ten_log = ds_ten[0] if len(ds_ten) == 1 else f'tu_{ds_ten[0]}'
+    ten_log = ten.split('.')[-1]
     if not nhanh:
         log(f'Log: {mo_file(ten_log + ("_gialap" if gia_lap else ""))}')
-    mods = [importlib.import_module(t if '.' in t else f'giai_doan.{t}') for t in ds_ten]
-    can_cam = any(_lop(m).CAN_CAMERA for m in mods)
+    lop = importlib.import_module(ten).ChuongTrinh
     if xe is None:
         if gia_lap:
             from .gia_lap import XeGiaLap
-            xe = XeGiaLap(can_camera=can_cam, nhanh=nhanh)
+            xe = XeGiaLap(can_camera=lop.CAN_CAMERA, nhanh=nhanh)
         else:
             from .ros_io import XeThat
-            xe = XeThat(can_camera=can_cam)
+            xe = XeThat(can_camera=lop.CAN_CAMERA)
     imu = IMU()
     xe.gan_imu(imu)
     xem = None
@@ -243,31 +233,18 @@ def chay(ds_ten, gia_lap=False, ghi_bag=True, nhanh=False, xem_cong=cau_hinh.CON
     bag = _ghi_bag(ten_log) if (ghi_bag and not gia_lap) else None
     ma = 0
     try:
-        log(f'Chạy: {" -> ".join(ds_ten)} | {"GIẢ LẬP" if gia_lap else "XE THẬT"}')
-        thieu = cho_cam_bien(xe, ['imu', 'scan', 'odom'] + (['camera'] if can_cam else []))
+        log(f'Chạy: {ten} | {"GIẢ LẬP" if gia_lap else "XE THẬT"}')
+        thieu = cho_cam_bien(xe, ['imu', 'scan', 'odom'] + (['camera'] if lop.CAN_CAMERA else []))
         if thieu:
             log(f'LỖI: không nhận được cảm biến {thieu} sau 5 s. Kiểm `docker ps`, crc_bringup.')
             return 2, ctx
         ctx.du_lieu['imu_hieu_chuan'] = hieu_chuan_imu(xe, imu)
-        i = 0
-        while i < len(mods):
-            gd = _lop(mods[i])()
-            log(f'==> VÀO {gd.TEN}')
-            kq = chay_mot(gd, ctx)
-            log(f'<== RA  {gd.TEN}: {kq.ly_do} (sau {ctx.thoi_gian():.1f} s, {ctx.quang_duong():.2f} m)')
-            ctx.du_lieu.setdefault('lich_su', []).append((gd.TEN, kq.ly_do, round(ctx.thoi_gian(), 2)))
-            if kq.dung_han:
-                ma = 1
-                break
-            if kq.tiep and kq.tiep in ds_ten:
-                i = ds_ten.index(kq.tiep)
-            elif kq.tiep:
-                log(f'(giai đoạn kế là {kq.tiep}, không nằm trong lượt này -> kết thúc)')
-                break
-            else:
-                i += 1
-        else:
-            log('XONG mọi giai đoạn trong lượt này.')
+        gd = lop()
+        log(f'==> BẮT ĐẦU {gd.TEN}')
+        kq = chay_mot(gd, ctx)
+        log(f'<== XONG {gd.TEN}: {kq.ly_do} (sau {ctx.thoi_gian():.1f} s, {ctx.quang_duong():.2f} m)')
+        ctx.du_lieu['lich_su'] = [(gd.TEN, kq.ly_do, round(ctx.thoi_gian(), 2))]
+        ma = 1 if kq.dung_han else 0
     finally:
         xe.dung()
         if bag is not None:
@@ -284,7 +261,7 @@ def chay(ds_ten, gia_lap=False, ghi_bag=True, nhanh=False, xem_cong=cau_hinh.CON
 
 
 class CongCu:
-    """Mở xe cho một công cụ (không chạy giai đoạn). Dùng:  with CongCu('imu_test') as c: ...
+    """Mở xe cho một công cụ tự viết vòng lặp riêng. Dùng:  with CongCu('imu_test') as c: ...
 
     c.xe, c.imu, c.xem; c.dang_chay() = chưa bị Ctrl+C / dừng khẩn. Khi thoát luôn gửi v = w = 0.
     """

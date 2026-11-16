@@ -61,7 +61,7 @@ def main():
                             (90, SIDE_DEG, WALL_MAX, (255, 0, 255)),
                             (-90, SIDE_DEG, WALL_MAX, (255, 0, 255))],
                     chu=f'truoc {f(truoc)} trai {f(trai)} phai {f(phai)}'), luon=True)
-                c.xem.cap_nhat(giai_doan='lidar_test', chi_tiet=ham)
+                c.xem.cap_nhat(chuong_trinh='lidar_test', chi_tiet=ham)
             c.xe.ngu(0.4)
 
 

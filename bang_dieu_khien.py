@@ -453,7 +453,7 @@ async function vongLog(){try{const r=await (await fetch('/api/log?tu='+tu)).json
  $('trangthai').style.color=r.chay?'var(--xanh)':'var(--mo)';kieu=r.kieu||kieu;}catch(e){} setTimeout(vongLog,400);}
 async function vongXe(){const host=kieu==='gia_lap'?'127.0.0.1':'__XE_IP__';
  try{const c=new AbortController();setTimeout(()=>c.abort(),800);const t=await (await fetch(`http://${host}:8097/trang_thai.json`,{signal:c.signal})).json();
-  $('gd').textContent='đang chạy '+(t.giai_doan||'-')+(t.chi_tiet?' | '+t.chi_tiet:'');
+  $('gd').textContent='đang chạy '+(t.chuong_trinh||'-')+(t.chi_tiet?' | '+t.chi_tiet:'');
   $('vw').textContent=`v ${t.v??'-'} w ${t.w??'-'}`;$('goc').textContent=`yaw ${t.yaw??'-'}° pitch ${t.pitch??'-'}° roll ${t.roll??'-'}°`;
   $('qd').textContent=(t.quang_duong??'-')+' m';
   xe3d(t.pitch||0,t.roll||0,t.yaw||0);

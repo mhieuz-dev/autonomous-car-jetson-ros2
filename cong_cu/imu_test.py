@@ -47,7 +47,7 @@ def main():
                     log(f'{chu} | còn {con:2d} s | pitch {math.degrees(imu.pitch):+5.1f}  '
                         f'roll {math.degrees(imu.roll):+5.1f}  yaw {math.degrees(imu.yaw):+6.1f}')
                 if c.xem:
-                    c.xem.cap_nhat(giai_doan='imu_test', yaw=round(math.degrees(imu.yaw), 1),
+                    c.xem.cap_nhat(chuong_trinh='imu_test', yaw=round(math.degrees(imu.yaw), 1),
                                    pitch=round(math.degrees(imu.pitch), 2), roll=round(math.degrees(imu.roll), 2),
                                    chi_tiet=chu)
             return mx

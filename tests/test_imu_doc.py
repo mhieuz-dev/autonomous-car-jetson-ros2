@@ -38,6 +38,6 @@ def test_goi_y_nam_giua_cac_phan():
 
 def test_xe_gia_lap_tu_chay_qua_doc_toi_ham():
     xe = XeGiaLap(can_camera=False, nhanh=True, co_nguoi=False, doc_len=1.3, doc_xuong=-1.2)
-    ma, ctx = khung.chay(['cong_cu.imu_doc'], gia_lap=True, ghi_bag=False, nhanh=True, xem_cong=None, xe=xe)
+    ma, ctx = khung.chay('cong_cu.imu_doc', gia_lap=True, ghi_bag=False, nhanh=True, xem_cong=None, xe=xe)
     assert ctx.du_lieu['lich_su'][-1][1].startswith('vào hầm'), ctx.du_lieu['lich_su']
     assert xe.va_cham is None

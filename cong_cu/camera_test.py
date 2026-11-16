@@ -93,7 +93,7 @@ def main():
                 log(f'{fps:4.1f} fps (camera) | {kbk:4.0f} kB/khung | sáng {sg:3.0f} | nét {nt:4.0f} | '
                     + ' '.join(f'{t}:{"ĐẠT" if ok else "KHÔNG ĐẠT"}' for t, ok in ket))
                 if c.xem:
-                    c.xem.cap_nhat(giai_doan='camera_test',
+                    c.xem.cap_nhat(chuong_trinh='camera_test',
                                    chi_tiet=f'{fps:.1f} fps, sáng {sg:.0f}, nét {nt:.0f}')
                 t_log, n, kb, sang, net = time.monotonic(), 0, 0.0, 0.0, 0.0
 

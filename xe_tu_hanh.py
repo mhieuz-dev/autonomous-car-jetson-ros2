@@ -25,5 +25,5 @@ if __name__ == '__main__':
     if a.gia_lap:     # sa bàn giả cho xe ngóc mũi theo tốc độ như xe thật, khớp phần bù trong tham_so
         from chung.gia_lap import XeGiaLap
         xe = XeGiaLap(can_camera=True, nhanh=a.nhanh, he_so_toc_do=tham_so.NGOC_MUI_DO)
-    ma, _ = khung.chay(['tu_hanh.lai_xe'], gia_lap=a.gia_lap, ghi_bag=not a.khong_ghi, nhanh=a.nhanh, xe=xe)
+    ma, _ = khung.chay('tu_hanh.lai_xe', gia_lap=a.gia_lap, ghi_bag=not a.khong_ghi, nhanh=a.nhanh, xe=xe)
     sys.exit(ma)

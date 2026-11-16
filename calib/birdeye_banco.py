@@ -247,7 +247,7 @@ def main():
                 with lock:
                     st['hien'] = (cor, sz, bev, bc, on_dinh, dong)
                 if c.xem:
-                    c.xem.cap_nhat(giai_doan='birdeye_banco', chi_tiet=dong)
+                    c.xem.cap_nhat(chuong_trinh='birdeye_banco', chi_tiet=dong)
                 if time.monotonic() - t_log > 1:
                     t_log = time.monotonic()
                     log(f'cao {res["cao"] * 100:5.1f} cm | chúi {res["pitch"]:5.1f}° | nghiêng ngang {res["roll"]:+5.1f}° | '

@@ -14,7 +14,7 @@ from .hanh_vi import tao_ds
 from .nhan_biet import NhanBiet, nguong_nguoi
 
 
-class ChuongTrinh(khung.GiaiDoanCoSo):
+class ChuongTrinh(khung.ChuongTrinhCoSo):
     TEN = 'tu_hanh'
     HZ = TS.HZ
     CAN_CAMERA = True

@@ -3,7 +3,7 @@
     http://<ip-xe>:8097/                 trang có mọi hình đang phát
     http://<ip-xe>:8097/anh/<ten>.mjpg   luồng hình (MJPEG)
     http://<ip-xe>:8097/anh/<ten>.jpg    một khung
-    http://<ip-xe>:8097/trang_thai.json  số liệu (giai đoạn, v, w, yaw, pitch, roll...)
+    http://<ip-xe>:8097/trang_thai.json  số liệu (chương trình, v, w, yaw, pitch, roll...)
 Đi bằng TCP nên qua được hotspot. Chỉ nén JPEG khi CÓ người đang xem hình đó,
 để Jetson không tốn CPU vô ích.
 """

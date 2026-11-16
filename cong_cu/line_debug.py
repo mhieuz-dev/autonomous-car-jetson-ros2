@@ -48,7 +48,7 @@ def main():
                 log(f'{d} | điểm {kq.so_diem} | bắt {thay}/{so_khung} khung | '
                     f'{ms / max(so_khung, 1):.1f} ms/khung | {so_khung / dt:.1f} Hz')
                 if c.xem:
-                    c.xem.cap_nhat(giai_doan='line_debug', chi_tiet=d)
+                    c.xem.cap_nhat(chuong_trinh='line_debug', chi_tiet=d)
                 so_khung, thay, ms = 0, 0, 0.0
 
 

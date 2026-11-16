@@ -29,7 +29,7 @@ def chay(xe=None, toi_da=120.0, **sa_ban):
     xe.gui = ghi
     cu, TS.THOI_GIAN_TOI_DA = TS.THOI_GIAN_TOI_DA, toi_da
     try:
-        _, ctx = khung.chay(['tu_hanh.lai_xe'], gia_lap=True, ghi_bag=False, nhanh=True, xem_cong=None, xe=xe)
+        _, ctx = khung.chay('tu_hanh.lai_xe', gia_lap=True, ghi_bag=False, nhanh=True, xem_cong=None, xe=xe)
     finally:
         TS.THOI_GIAN_TOI_DA = cu
     return ctx, xe, np.array(vet)

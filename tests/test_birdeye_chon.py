@@ -70,7 +70,7 @@ def test_luu_lua_chon_roi_code_lai_doc_duoc(moi):
         shutil.copy(moi / 'calib_moi' / f, moi / 'calib' / f)
     assert Calib().cao_m == pytest.approx(0.11, abs=0.003)          # calib/ đầy đủ -> đọc được
     assert doc_bev() == {'x_gan': 0.25, 'x_xa': 0.9, 'y_trai': 0.4, 'y_phai': -0.4, 'm_px': 0.004}
-    from giai_doan.s7_bam_vach import tao_bo_do
+    from chung.bam_vach import tao_bo_do
     do = tao_bo_do()
-    assert (do.p.X_GAN, do.p.X_XA, do.be.m) == (0.25, 0.9, 0.004)   # S7 dùng đúng vùng nhìn đã chọn
+    assert (do.p.X_GAN, do.p.X_XA, do.be.m) == (0.25, 0.9, 0.004)   # bộ dò dùng đúng vùng nhìn đã chọn
     assert do.be.y_trai == 0.4 and do.be.y_phai == -0.4

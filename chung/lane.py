@@ -16,7 +16,7 @@
                  bỏ khung nhảy > CONG_NHAY_M; mất vạch thì giữ dự đoán tối đa GIU_TOI_DA s
 Đầu ra: khoảng cách tới vạch phải đo tại X_NHIN phía trước (khoang_cach_truoc, dùng
 để lái) và ngoại suy về ngay cạnh xe (khoang_cach, để xem), góc psi, độ cong.
-Bước 8 (PID theo khoảng cách) nằm trong giai_doan/s7_bam_vach.py.
+Bước 8 (PID theo khoảng cách) nằm trong chung/bam_vach.py.
 """
 import math
 import time

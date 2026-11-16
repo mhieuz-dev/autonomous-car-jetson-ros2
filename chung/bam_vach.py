@@ -169,10 +169,9 @@ class BamVach:
 
 
 class DieuKhienLan:
-    """PID khoảng cách tới vạch phải (xem đầu file). lenh() chỉ tính lệnh từ kết quả dò vạch đã có;
-    buoc() tự lấy khung mới qua BamVach rồi gọi lenh().
+    """PID khoảng cách tới vạch phải (xem đầu file), tính lệnh từ kết quả dò vạch của BamVach.
 
-    Trả (v, w, mat_qua_lau). Mất vạch thì chạy chậm giữ hướng; mat_qua_lau = True khi mất vạch lâu hơn
+    lenh() trả (v, w, mat_qua_lau). Mất vạch thì chạy chậm giữ hướng; mat_qua_lau = True khi mất vạch lâu hơn
     MAT_VACH_DUNG giây, bên gọi tự quyết dừng hay chạy tiếp."""
 
     def __init__(self, gia_lap=False, bam=None):
@@ -182,19 +181,11 @@ class DieuKhienLan:
         self.t_mat = 0.0
         self.yaw_giu = None
         self.e = 0.0
-        self.so_khung = 0
         self._t = 0.0
 
     def dat_lai(self):
         self.pid.reset()
         self.huong.reset()
-
-    def buoc(self, ctx, dt, v_bam=V_BAM, debug=False):
-        self._t = ctx.xe.gio()
-        kq, moi = self.bam.cap_nhat(ctx, debug=debug)
-        if moi:
-            self.so_khung += 1
-        return self.lenh(kq, ctx.imu, dt, v_bam)
 
     def lenh(self, kq, imu, dt, v_bam=V_BAM, t=None):
         if t is not None:

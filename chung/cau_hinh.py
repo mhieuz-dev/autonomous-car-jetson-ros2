@@ -19,10 +19,10 @@ LIDAR_LECH_GOC_DO = 0.0
 LIDAR_TOI_CAN_M = 0.197       # tâm LiDAR -> mép cản TRƯỚC
 LIDAR_TOI_CAN_SAU_M = 0.069   # tâm LiDAR -> mép cản SAU
 
-# CHẶN SÁT MŨI (mọi giai đoạn, không điều kiện): vật trong nón ±CHAN_MUI_NUA_GOC_DO
+# CHẶN SÁT MŨI (mọi script lái, không điều kiện): vật trong nón ±CHAN_MUI_NUA_GOC_DO
 # cách cản trước < CHAN_MUI_CACH_M thì CẤM CHẠY TỚI (v = 0). Vẫn được quay tại chỗ
 # và lùi, nên khúc cua hầm vẫn xoay ra được. Vật đi khỏi thì chạy tiếp.
-CHAN_MUI_BAT = False   # TẮT mặc định (user chốt 10/10: giữ LiDAR 04a nguyên). Bật = True nếu muốn thử
+CHAN_MUI_BAT = False   # tắt mặc định: LiDAR chạy đúng bản 04a. Bật = True nếu muốn thử
 CHAN_MUI_CACH_M = 0.05
 CHAN_MUI_NUA_GOC_DO = 20.0
 
@@ -41,13 +41,3 @@ BAT_VONG_GYRO = True
 GYRO_KP = 0.5
 GYRO_KI = 1.0
 GYRO_I_MAX = 0.3
-
-# Thứ tự các giai đoạn của FULL MAP
-# Bản S7 dùng trong full map: 's7_bam_vach' (CHÍNH THỨC: bám vạch, giữ độ cong + cổng hợp lý; STOP đầu tiên thì chạy
-# lại đường đẩy tay calib/duong_stop.csv rồi bám vạch V_BAM_SAU) | 's7_phat_lai' (bám vạch, mất vạch thì theo đường
-# đã ghi) | 's7_ghi_duong' (ĐẨY TAY ghi đường từ đầu S7 tới đích, xe không tự chạy)
-# | 's7_stop_ghi' (bám vạch, gặp STOP thì đẩy tay ghi đường cho s7_bam_vach chạy lại)
-S7_DUNG = 's7_bam_vach'
-# S0 (chờ đèn xanh) đã bỏ khỏi luật thi: full map bắt đầu từ S1, S0 vẫn chạy riêng được
-THU_TU = ['s1_xuat_phat', 's2_len_doc', 's3_dinh_doc',
-          's4_xuong_doc', 's5_ham', 's6_ra_ham', S7_DUNG]

@@ -4,7 +4,7 @@ Sa bàn giả: xuất phát -> người đi bộ -> dốc (+6 độ) -> đỉnh 
 hầm có khúc cua TRÁI 90 độ -> ra hầm -> đường có vạch liền phải + vạch đứt giữa,
 một vệt sáng giả rộng 6 cm và một vạch dừng ngang để thử bộ dò vạch.
 Sinh đủ IMU 100 Hz, /scan 10 Hz (360 tia), odom 25 Hz, camera 15 Hz (ảnh JPEG
-méo đúng như calib), nên MỌI script giai đoạn chạy y như trên xe thật.
+méo đúng như calib), nên mọi script lái chạy y như trên xe thật.
 Vị trí dốc và hầm tính theo quãng đường s dọc tim đường (doan_doc, ham), nên
 đổi chỗ được để thử xe gặp tình huống theo thứ tự khác.
 Đây là sa bàn tượng trưng để kiểm luồng code, KHÔNG thay được thử trên xe.
@@ -55,7 +55,7 @@ def _duong_tim():
 class XeGiaLap:
     gia_lap = True
 
-    def __init__(self, can_camera=False, nhanh=False, t_xanh=3.0, co_nguoi=True, w_troi=0.03,
+    def __init__(self, can_camera=False, nhanh=False, t_nguoi=3.0, co_nguoi=True, w_troi=0.03,
                  doc_len=6.0, doc_xuong=-5.0, he_so_toc_do=0.0, doan_doc=None, ham=(4.0, 6.485)):
         # [(s đầu, s cuối, độ dốc)] dọc tim đường; mặc định dốc lên rồi xuống ngay trước hầm
         self.doan_doc = doan_doc if doan_doc is not None else [(2.0, 2.7, doc_len), (3.3, 3.8, doc_xuong)]
@@ -65,7 +65,7 @@ class XeGiaLap:
         self.nhanh = nhanh
         self.t = 0.0
         self.imu = None
-        self.t_xanh = t_xanh
+        self.t_nguoi = t_nguoi     # người đi bộ đứng trên làn từ giây này, trong 4 s
         self.co_nguoi = co_nguoi
         self.w_troi = w_troi                 # bánh lệch: xe tự quay khi chạy thẳng
         self.x, self.y, self.yaw = 0.0, -0.20, 0.0
@@ -114,7 +114,7 @@ class XeGiaLap:
         return np.array([[*c[i], *c[(i + 1) % 4]] for i in range(4)])
 
     def _nguoi(self):
-        if not self.co_nguoi or not (self.t_xanh <= self.t <= self.t_xanh + 4.0):
+        if not self.co_nguoi or not (self.t_nguoi <= self.t <= self.t_nguoi + 4.0):
             return np.empty((0, 4))
         cx, cy, h = 0.9, -0.2, 0.06
         c = [(cx - h, cy - h), (cx + h, cy - h), (cx + h, cy + h), (cx - h, cy + h)]
@@ -254,12 +254,9 @@ class XeGiaLap:
         return self._anh_cache[0], self._so_anh
 
     def den_doc_duong(self):
-        """Kết quả nhận đèn giả lập cho S1 (cùng dạng NhanDen.nhan): [{'ten','tin','hop'}]."""
+        """Đèn / biển giả theo den_lich (cùng dạng NhanDen.nhan): [{'ten','tin','hop'}]."""
         return [{'ten': ten, 'tin': 0.9, 'hop': [300, 100, 330, 100 + cao]}
                 for t0, t1, ten, cao in self.den_lich if t0 <= self.t <= t1]
-
-    def den_gia_lap(self):
-        return 'den xanh' if self.t >= self.t_xanh else 'den do'
 
     def tuoi(self, ten):
         if ten == 'camera':

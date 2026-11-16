@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from chung.camera import giai_nen_xam_nua  # noqa: E402
 from chung.gia_lap import XeGiaLap  # noqa: E402
-from giai_doan.s7_bam_vach import tao_bo_do  # noqa: E402
+from chung.bam_vach import tao_bo_do  # noqa: E402
 
 XE = XeGiaLap(can_camera=True, nhanh=True)
 

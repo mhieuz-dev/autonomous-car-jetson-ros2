@@ -11,14 +11,11 @@ Khung lo: kiểm cảm biến, dừng khẩn (Ctrl+C / file /tmp/champion_dung /
 cảm biến), giới hạn gia tốc, log mỗi 0,5 s, ghi bag, gửi trạng thái lên trang xem.
 Khi qua giai đoạn mới, đối tượng giai đoạn cũ bị bỏ: logic cũ KHÔNG chạy nữa.
 """
-import argparse
 import importlib
 import math
 import signal
 import subprocess
-import sys
 import time
-from pathlib import Path
 
 from . import cau_hinh
 from .imu import IMU
@@ -66,8 +63,6 @@ class NguCanh:
         self.chan_mui = self._chan_mui_cu = False
         self._qd0 = 0.0
         self.t0 = 0.0
-        self.nhan_nen = None        # luồng nhận biển nền (STOP ở S5-S7), bật khi cần
-        self.dung_stop = None
 
     def quang_duong(self):
         """Mét đã chạy từ đầu giai đoạn hiện tại (odom)."""
@@ -137,19 +132,6 @@ def _ghi_bag(ten):
         return None
 
 
-def _stop_ca_map(gd, ctx):
-    """Biển STOP cho các giai đoạn trong S1.STOP_CA_MAP (S1 tự xử lý STOP của nó, dốc S2-S4 không dừng)."""
-    from giai_doan import s1_xuat_phat as S1
-    if not S1.BIEN_BAT or gd.TEN not in S1.STOP_CA_MAP:
-        return False
-    if ctx.nhan_nen is None:
-        from .bien_stop import DungStop, NhanNen
-        ctx.nhan_nen = NhanNen(ctx)
-        ctx.dung_stop = ctx.dung_stop or DungStop()
-    return ctx.dung_stop.buoc(ctx.nhan_nen.kq(), ctx.xe.gio(), gd.TEN, S1.STOP_CAO_MIN_PX, S1.BIEN_TIN_MIN,
-                              S1.STOP_DUNG_GIAY, S1.STOP_BO_QUA_GIAY)
-
-
 def _chay_mot(gd, ctx):
     xe = ctx.xe
     gh = GioiHan(**gd.GIOI_HAN)
@@ -180,8 +162,6 @@ def _chay_mot(gd, ctx):
         if isinstance(kq, KetThuc):
             ctx.v_cuoi, ctx.w_cuoi = gh.v, gh.w
             return kq
-        if _stop_ca_map(gd, ctx):
-            kq = (0.0, 0.0, 'gap')               # biển STOP đủ gần: đứng yên (giai đoạn vẫn chạy bên trong)
         ctx.chan_mui = False
         if cau_hinh.CHAN_MUI_BAT and kq[0] > 0.0:
             d = range_in_cone(xe.scan, 0.0, cau_hinh.CHAN_MUI_NUA_GOC_DO)
@@ -289,8 +269,6 @@ def chay(ds_ten, gia_lap=False, ghi_bag=True, nhanh=False, xem_cong=cau_hinh.CON
         else:
             log('XONG mọi giai đoạn trong lượt này.')
     finally:
-        if ctx.nhan_nen is not None:
-            ctx.nhan_nen.chay = False
         xe.dung()
         if bag is not None:
             bag.send_signal(signal.SIGINT)
@@ -354,18 +332,3 @@ class CongCu:
                 self.xem.dong()
             log('Đã gửi lệnh dừng xe (v = 0, w = 0).')
         return False
-
-
-def main(file):
-    """Gọi từ `if __name__ == '__main__'` của mỗi file giai đoạn."""
-    ten = Path(file).stem
-    ap = argparse.ArgumentParser(description=f'Chạy giai đoạn {ten}')
-    ap.add_argument('--tiep', action='store_true', help='chạy tiếp tới hết map sau giai đoạn này')
-    ap.add_argument('--gia-lap', action='store_true', help='chạy trên xe giả lập (không cần xe)')
-    ap.add_argument('--nhanh', action='store_true', help='giả lập chạy nhanh hết cỡ (không chờ giờ thật)')
-    ap.add_argument('--khong-ghi', action='store_true', help='không ghi bag')
-    a = ap.parse_args()
-    # giai đoạn thử (vd s7_bam_vach_test) không nằm trong THU_TU: --tiep chỉ chạy nó
-    ds = cau_hinh.THU_TU[cau_hinh.THU_TU.index(ten):] if (a.tiep and ten in cau_hinh.THU_TU) else [ten]
-    ma, _ = chay(ds, gia_lap=a.gia_lap, ghi_bag=not a.khong_ghi, nhanh=a.nhanh)
-    sys.exit(ma)

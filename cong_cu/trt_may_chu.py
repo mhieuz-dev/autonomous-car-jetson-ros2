@@ -4,7 +4,7 @@
 qua TCP 127.0.0.1:8095, chạy models/best.engine trên GPU, trả output thô [1, 18, 8400] để container hậu xử lý.
 
 Vì sao chạy ngoài container: container crc_car (Ubuntu 22.04, python3.10) không có TensorRT/CUDA cho python;
-JetPack trên Jetson có sẵn TensorRT 8.2 (python3-libnvinfer). chay.sh tự bật script này trước khi chạy giai đoạn.
+JetPack trên Jetson có sẵn TensorRT 8.2 (python3-libnvinfer). chay.sh tự bật script này trước khi chạy xe.
 Giao thức: [4 byte độ dài][uint8 CHW 3x640x640]  ->  [4 byte độ dài][float32 output].
 Build engine (1 lần, ~10 phút):  /usr/src/tensorrt/bin/trtexec --onnx=best.onnx --saveEngine=best.engine --fp16
 """
@@ -88,7 +88,7 @@ def main():
     khoa = threading.Lock()                         # 1 engine dùng chung: mỗi lúc 1 lần chạy GPU
 
     def phuc_vu(conn):
-        """Mỗi kết nối 1 luồng: S0, S1, onnx_test (kể cả bản cũ chưa tắt) không chặn nhau."""
+        """Mỗi kết nối 1 luồng: xe tự hành, onnx_test (kể cả bản cũ chưa tắt) không chặn nhau."""
         conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         try:
             while True:

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Chay 1 script Champion BEN TRONG container crc_car (chay.sh goi file nay).
 # Go tay tren Jetson (log hien ngay terminal do):
-#   docker exec -it crc_car bash /ws/src/champion/trong_xe.sh giai_doan/s1_xuat_phat.py
-#   docker exec -it crc_car bash /ws/src/champion/trong_xe.sh full_map.py
+#   docker exec -it crc_car bash /ws/src/champion/trong_xe.sh xe_tu_hanh.py
+#   docker exec -it crc_car bash /ws/src/champion/trong_xe.sh cong_cu/lidar_test.py
 source /opt/ros/humble/setup.bash
 [[ -f /engines/fastdds_mtu.xml ]] && export FASTRTPS_DEFAULT_PROFILES_FILE=/engines/fastdds_mtu.xml
 # Tat MOI thu khac dang gui /cmd_vel: code cu (crc_solution, imu_yaw_loop, ...) va lan chay truoc

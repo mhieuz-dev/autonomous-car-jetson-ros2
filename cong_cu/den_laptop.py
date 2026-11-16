@@ -3,13 +3,13 @@
 """Nhận biển báo + đèn bằng model trên LAPTOP, đi bằng DDS (ROS 2) cho ổn định và mượt.
 
 Thêm LiDAR và bird's eye: cũng tính + vẽ ngay trên laptop (không để xe vẽ rồi truyền qua Wi-Fi):
-    /scan -> http://127.0.0.1:8096/anh/lidar.mjpg   LiDAR nhìn từ trên, vẽ cả vùng dừng cho người đi bộ của S1
-    ảnh camera + calib/ -> /anh/birdeye.mjpg (bird's eye) và /anh/vach.mjpg (8 ô dò vạch như S1/S7)
+    /scan -> http://127.0.0.1:8096/anh/lidar.mjpg   LiDAR nhìn từ trên, vẽ cả vùng dừng cho người đi bộ
+    ảnh camera + calib/ -> /anh/birdeye.mjpg (bird's eye) và /anh/vach.mjpg (8 ô dò vạch như trên xe)
 Lưu ý: ô dò vạch trên laptop chạy cùng thuật toán trên cùng khung camera nhưng KHÔNG có odom/IMU của xe để dự đoán
 giữa 2 khung, nên có thể lệch chút so với bộ dò thật trên xe. Dùng để XEM, xe vẫn tự lái bằng bộ dò của nó.
 Luồng: /camera/image_raw/compressed (xe -> laptop, ảnh đã nén JPEG, KHÔNG giải nén lại để xem) -> model chỉ trong
 vùng ROI (calib/roi_bien.yaml, đọc lại mỗi giây nên Lưu ROI có hiệu lực ngay) -> /champion/den (laptop -> xe,
-JSON nhỏ trong std_msgs/String; S1 trên xe đọc). Xem hình ngay trên laptop, không qua xe:
+JSON nhỏ trong std_msgs/String; xe tự hành đọc khi DEN_NGUON = "laptop"). Xem hình ngay trên laptop, không qua xe:
     http://127.0.0.1:8096/anh/cam.mjpg   ảnh camera nén của xe, đúng nhịp camera
     http://127.0.0.1:8096/anh/den.mjpg   vùng ROI có vẽ khung nhận được
 Model chạy ở luồng riêng, luôn lấy khung MỚI NHẤT (bỏ khung cũ) nên không bao giờ bị trễ tích luỹ.
@@ -169,9 +169,10 @@ def main():
 
     # ---- LiDAR: vẽ ngay khi có scan (xe gửi /scan qua DDS) ----
     try:
-        from giai_doan.s1_xuat_phat import NUA_RONG_M, nguong_dung
-        non = [(0, math.degrees(math.atan2(NUA_RONG_M, nguong_dung())), nguong_dung(), (0, 255, 0))]
-    except Exception:  # noqa: BLE001 - không có S1 thì vẽ không kèm vùng dừng
+        from tu_hanh.nhan_biet import nguong_nguoi
+        from tu_hanh.tham_so import NUA_RONG_M
+        non = [(0, math.degrees(math.atan2(NUA_RONG_M, nguong_nguoi())), nguong_nguoi(), (0, 255, 0))]
+    except Exception:  # noqa: BLE001 - không đọc được tham số thì vẽ không kèm vùng dừng
         non = []
 
     def on_scan(m):

@@ -2,7 +2,7 @@
 """Đo TẢI JETSON: CPU từng nhân, GPU, RAM, nhiệt độ (tegrastats), tiến trình nặng nhất.
 CHAY_TREN: host
 
-Chạy NGAY LÚC script khác đang chạy (ví dụ trong lúc s7_bam_vach / full_map) để biết
+Chạy NGAY LÚC script khác đang chạy (ví dụ trong lúc xe_tu_hanh) để biết
 xe có quá tải không:   bash chay.sh tai_jetson [--giay 15]
 Ngưỡng tham khảo: CPU trung bình < 70 %, nhiệt < 70 độ C, RAM còn trống > 300 MB.
 """

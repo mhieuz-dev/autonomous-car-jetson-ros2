@@ -4,9 +4,9 @@ CHAY_TREN: laptop
 
     python3 bang_dieu_khien.py            (IP xe lấy từ CRC_HOST, mặc định jetson.local, đổi bằng CRC_HOST=jetson@<ip>)
 
-Bên TRÁI: mọi script (giai đoạn S0-S7, FULL MAP, công cụ IMU / PID / LiDAR / calib /
-đèn / dò vạch / tải Jetson). Bấm "Xe" = chạy trên xe qua `chay.sh` (y như gõ tay),
-"Tới hết" = chạy từ giai đoạn đó tới hết map, "Giả lập" = chạy trên laptop với xe giả.
+Bên TRÁI: mọi script (xe tự hành, công cụ IMU / PID / LiDAR / calib / đèn / dò vạch /
+tải Jetson). Bấm "Xe" = chạy trên xe qua `chay.sh` (y như gõ tay), "Giả lập" = chạy trên
+laptop với xe giả.
 Bên PHẢI: log của script đang chạy (realtime), hình của nó (camera / bird's eye / LiDAR...)
 và mô hình xe 3D theo IMU. Muốn sửa tham số: bấm "Sửa" (mở file), sửa khối THAM SỐ,
 Ctrl+S, bấm chạy lại: lần chạy mới dùng đúng số vừa lưu.
@@ -27,7 +27,7 @@ from pathlib import Path
 GOC = Path(__file__).resolve().parent
 CONG = 8099
 XE_IP = os.environ.get('CRC_HOST', 'jetson@jetson.local').split('@')[-1]
-GIA_LAP_DUOC = {'imu_doc', 'imu_test', 'pid_test', 'lidar_test', 'line_debug', 'camera_test', 'full_map'}
+GIA_LAP_DUOC = {'imu_doc', 'imu_test', 'pid_test', 'lidar_test', 'line_debug', 'camera_test', 'xe_tu_hanh'}
 
 
 BUOC_CALIB = {
@@ -37,8 +37,7 @@ BUOC_CALIB = {
 
 
 def ds_script():
-    nhom = [('Giai đoạn (theo thứ tự map)', sorted(GOC.glob('giai_doan/s*.py'))),
-            ('Toàn map', [GOC / 'full_map.py']),
+    nhom = [('Xe tự hành', [GOC / 'xe_tu_hanh.py']),
             ("Bird's eye (bước 4 và 5)",
              [GOC / 'calib/birdeye_banco.py', GOC / 'cong_cu/line_debug.py']),
             ('Công cụ hiệu chuẩn / kiểm tra',
@@ -52,11 +51,11 @@ def ds_script():
             mo_ta = doc.group(1).strip().splitlines()[0] if doc else ''
             mo_ta = BUOC_CALIB.get(f.stem, mo_ta)
             noi = re.search(r'CHAY_TREN: (host|laptop)', txt)
-            ts = re.search(r'(# ===== THAM SỐ.*?)\n# =+\n', txt, re.S)
-            muc.append({'ten': f.stem, 'file': str(f.relative_to(GOC)), 'mo_ta': mo_ta,
+            sua = GOC / 'tu_hanh/tham_so.py' if f.stem == 'xe_tu_hanh' else f     # tham số xe tự hành gom ở đây
+            ts = re.search(r'(# ===== THAM SỐ.*?)\n# =+\n', sua.read_text(encoding='utf-8'), re.S)
+            muc.append({'ten': f.stem, 'file': str(sua.relative_to(GOC)), 'mo_ta': mo_ta,
                         'noi': noi.group(1) if noi else 'xe', 'tham_so': ts.group(1) if ts else '',
-                        'giai_doan': f.parent.name == 'giai_doan', 'tay': '--tay' in txt,
-                        'gia_lap': f.parent.name == 'giai_doan' or f.stem in GIA_LAP_DUOC})
+                        'tay': '--tay' in txt, 'gia_lap': f.stem in GIA_LAP_DUOC})
         ra.append({'nhom': ten_nhom, 'muc': muc})
     return ra
 
@@ -92,7 +91,7 @@ class TienTrinh:
     def chay(self, ten, kieu, them):
         if self.proc and self.proc.poll() is None:
             return False, f'Đang chạy {self.ten}: bấm DỪNG trước'
-        tim = [GOC / 'cong_cu' / f'{ten}.py', GOC / 'giai_doan' / f'{ten}.py', GOC / 'calib' / f'{ten}.py', GOC / f'{ten}.py']
+        tim = [GOC / 'cong_cu' / f'{ten}.py', GOC / 'calib' / f'{ten}.py', GOC / f'{ten}.py']
         f = next((p for p in tim if p.exists()), None)
         if f is None:
             return False, f'không có script {ten}'
@@ -263,10 +262,6 @@ class H(BaseHTTPRequestHandler):
                               'moi_ngoai': (GOC / 'calib_moi/ngoai.yaml').exists()})
         if path == '/api/den_laptop':
             return self._gui({'chay': DL.chay(), 'dong': DL.dong})
-        if path == '/api/nguong_px':
-            from chung.den_onnx import doc_nguong
-            from giai_doan.s0_den_xanh import CAO_MIN_PX
-            return self._gui({'den_xanh_s0': doc_nguong('den_xanh_s0', CAO_MIN_PX), 'mac_dinh': CAO_MIN_PX})
         if path == '/api/roi':
             from chung.den_onnx import doc_roi
             r = doc_roi()
@@ -288,8 +283,6 @@ class H(BaseHTTPRequestHandler):
         d = json.loads(self.rfile.read(n) or b'{}')
         if self.path == '/api/chay':
             them = [x for x in d.get('them', '').split() if x]
-            if d.get('tiep'):
-                them.append('--tiep')
             ok, tb = TT.chay(d['ten'], d.get('kieu', 'xe'), them)
             return self._gui({'ok': ok, 'tb': tb})
         if self.path == '/api/bev/luu':
@@ -311,19 +304,11 @@ class H(BaseHTTPRequestHandler):
         if self.path == '/api/den_laptop':
             DL.bat() if d.get('bat') else DL.tat()
             return self._gui({'chay': DL.chay(), 'dong': DL.dong})
-        if self.path == '/api/nguong_px':
-            try:
-                from chung.den_onnx import ghi_nguong
-                ghi_nguong('den_xanh_s0', d['den_xanh_s0'])
-                return self._gui({'ok': True, 'tb': f"Đã lưu: đèn xanh S0 cần khung cao >= {float(d['den_xanh_s0']):.0f} px. "
-                                  f"Lần chạy sau có hiệu lực."})
-            except (ValueError, KeyError, TypeError) as e:
-                return self._gui({'ok': False, 'tb': str(e)})
         if self.path == '/api/roi':
             try:
                 from chung.den_onnx import ghi_roi
                 ghi_roi(d['y1'], d['y2'])
-                return self._gui({'ok': True, 'tb': f"Đã lưu ROI hàng {int(d['y1'])}..{int(d['y2'])}. Chạy lại S1 là có hiệu lực."})
+                return self._gui({'ok': True, 'tb': f"Đã lưu ROI hàng {int(d['y1'])}..{int(d['y2'])}. Chạy lại xe là có hiệu lực."})
             except (ValueError, KeyError) as e:
                 return self._gui({'ok': False, 'tb': str(e)})
         if self.path == '/api/dung':
@@ -370,25 +355,17 @@ input{background:var(--o2);color:var(--chu);border:1px solid #333;border-radius:
 <div id="trai">
  <h1>CHAMPION</h1><div class="mo">Xe: __XE_IP__ · log realtime bên phải · sửa tham số = bấm "Sửa", Ctrl+S, chạy lại</div>
  <button id="dung" class="nut" onclick="dung()">■ DỪNG KHẨN</button>
- <button class="nut phu" onclick="dung()" title="Dùng khi đang chạy s7_stop_ghi / s7_ghi_duong: dừng và LƯU đường đã đẩy tay">■ DỪNG GHI (lưu đường đẩy tay)</button>
- <button id="full" class="nut" onclick="chay('full_map','xe')">▶ CHẠY TẤT CẢ (FULL MAP trên xe)</button>
+ <button id="full" class="nut" onclick="chay('xe_tu_hanh','xe')">▶ CHẠY TỰ HÀNH (trên xe)</button>
  <div style="margin-top:8px"><div class="mo">Tham số thêm cho lần bấm tới (ví dụ <code>--v 0.30</code>, <code>--vung 380 60 560 260</code>):</div>
  <input id="them" placeholder="để trống nếu không cần"></div>
- <div class="muc" style="margin-top:8px"><b>Nhận biển + đèn bằng LAPTOP</b> <button id="dlnut" class="nut gl" onclick="dlDoi()">...</button><div id="dltt" class="mo" style="margin-top:4px"></div><div class="mo">Model chạy trên laptop (~50 ms/khung, Jetson ~850 ms). S1 và onnx_test lấy kết quả từ đây. ROI Lưu là có hiệu lực ngay.</div></div>
+ <div class="muc" style="margin-top:8px"><b>Nhận biển + đèn bằng LAPTOP</b> <button id="dlnut" class="nut gl" onclick="dlDoi()">...</button><div id="dltt" class="mo" style="margin-top:4px"></div><div class="mo">Model chạy trên laptop (~50 ms/khung, Jetson ~850 ms). Xe tự hành (DEN_NGUON = "laptop") và onnx_test lấy kết quả từ đây. ROI Lưu là có hiệu lực ngay.</div></div>
  <div id="ds"></div>
 </div>
 <div id="phai">
  <div id="tren"><span id="trangthai">Chưa chạy gì</span>
-  <span class="so" id="gd">giai đoạn -</span><span class="so" id="vw">v - w -</span>
+  <span class="so" id="gd">đang chạy -</span><span class="so" id="vw">v - w -</span>
   <span class="so" id="goc">yaw - pitch - roll -</span><span class="so" id="qd">- m</span></div>
  <div id="hinh"><figure><div id="xe3d"><div id="nen"><div id="san"></div><div id="hop"></div></div></div><figcaption id="cap3d">Mô hình xe theo IMU (mũi xe màu cam; mặt sàn đứng yên)</figcaption></figure></div>
- <details id="panelpx" open style="background:#12151b;border-bottom:1px solid #2a2f3a;padding:6px 10px"><summary style="cursor:pointer;font-weight:700;color:var(--lam)">Ngưỡng pixel: đèn xanh xuất phát (S0)</summary>
-  <div class="mo" style="margin:6px 0">Có nhiều đèn thì xe chỉ nghe đèn TO NHẤT, và đèn đó phải có khung cao từ số này (px, ảnh cao 480) mới được tính. Lúc S0 đang chờ, thanh trên cùng hiện "đèn to nhất cao N/M px": đặt xe ở vạch xuất phát, đọc N rồi đặt số nhỏ hơn N một chút. Lưu xong, lần chạy sau có hiệu lực.</div>
-  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-   <label>đèn xanh S0: khung cao tối thiểu (px) <input id="px_s0" type="number" min="5" max="480" step="1" style="width:80px"></label>
-   <button class="nut gl" onclick="pxLuu()">Lưu</button><span id="pxtb" class="mo"></span>
-  </div>
- </details>
  <details id="panelcalib" open><summary>Bird's eye: chọn ứng viên tốt nhất (sau khi chạy birdeye_banco)</summary>
   <div class="mo" style="margin:6px 0">Chạy <b>birdeye_banco</b> ở nhóm "Bird's eye" bên trái (đặt bàn cờ nhiều chỗ, mỗi chỗ một lần chốt), rồi chọn ở đây.</div>
   __CHON_BEV__
@@ -421,7 +398,7 @@ function xe3d(p,r,y){ // yaw + = quay trái, pitch + = ngóc mũi lên, roll + =
  const f=v=>(v>=0?'+':'')+(+v).toFixed(1)+'°';
  $('cap3d').innerHTML=`<span style="color:#ff5d5d">x · roll ${f(r)}</span> &nbsp; <span style="color:#3ddc84">y · pitch ${f(p)}</span> &nbsp; <span style="color:#4ea1ff">z · yaw ${f(y)}</span><br>trục màu = gắn vào xe, trục xám = mặt sàn đứng yên`;}
 const ROI_HTML=`<div class="roi" style="margin-top:8px;padding-top:8px;border-top:1px solid #2a2f3a"><b>ROI nhận biển báo + đèn</b>
-  <div class="mo" style="margin:4px 0">Chỉ nhận trong dải hàng pixel y1..y2 của ảnh 640x480 (0 = mép trên, 480 = mép dưới). Mặc định 240..480. Camera hiện trực tiếp từ laptop (bật "Nhận biển + đèn bằng LAPTOP"); Lưu xong hình "den" bên phải đổi ngay, S1 lần chạy sau dùng ROI này.</div>
+  <div class="mo" style="margin:4px 0">Chỉ nhận trong dải hàng pixel y1..y2 của ảnh 640x480 (0 = mép trên, 480 = mép dưới). Mặc định 240..480. Camera hiện trực tiếp từ laptop (bật "Nhận biển + đèn bằng LAPTOP"); Lưu xong hình "den" bên phải đổi ngay, Lần chạy xe sau dùng ROI này.</div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
    <label>y1<input id="roi1" type="number" min="0" max="478" step="5" style="width:64px" oninput="roiVe()"></label>
    <label>y2<input id="roi2" type="number" min="1" max="480" step="5" style="width:64px" oninput="roiVe()"></label>
@@ -441,8 +418,7 @@ const ROI_HTML=`<div class="roi" style="margin-top:8px;padding-top:8px;border-to
 async function ds(){const r=await (await fetch('/api/ds')).json();$('ds').innerHTML=r.map(n=>`<div class="nhom">${n.nhom}</div>`+n.muc.map(m=>`
  <div class="muc"><div class="ten" onclick="ts('${m.ten}')">${m.ten}</div><div class="mo">${m.mo_ta}</div>
  <div class="nuts">${m.noi==='laptop'?`<button class="nut xe" onclick="chay('${m.ten}','xe')">Chạy (laptop)</button>`:`<button class="nut xe" onclick="chay('${m.ten}','xe')">Xe</button>`}
- ${m.giai_doan?`<button class="nut tiep" onclick="chay('${m.ten}','xe',true)">Tới hết</button>`:''}
- ${m.tay?`<button class="nut tiep" onclick="chay('${m.ten}','xe',false,'--tay')">Tay (đẩy xe)</button>`:''}
+ ${m.tay?`<button class="nut tiep" onclick="chay('${m.ten}','xe','--tay')">Tay (đẩy xe)</button>`:''}
  ${m.gia_lap?`<button class="nut gl" onclick="chay('${m.ten}','gia_lap')">Giả lập</button>`:''}
  <button class="nut" onclick="mo('${m.file}')">Sửa</button></div>
  <pre class="ts" id="ts_${m.ten}">${(m.tham_so||'(không có khối THAM SỐ)').replace(/</g,'&lt;')}</pre></div>`).join('')).join('');const o=$('ts_onnx_test');if(o){o.parentElement.insertAdjacentHTML('beforeend',ROI_HTML);roiTai();}}
@@ -452,13 +428,11 @@ function thamCalib(ten){ // bước 4 cần 2 số đo bằng thước: hỏi, n
  const cao=prompt('Chiều cao camera so với mặt đường (m), đo bằng thước (chỉ để đối chiếu với số tự tính từ bàn cờ; để trống = bỏ qua):',localStorage.getItem('cao')||'0.110');if(cao===null)return false;
  const truoc=prompt('Quang tâm camera nằm TRƯỚC tâm xe bao nhiêu m (sau tâm xe thì nhập số âm), đo bằng thước:',localStorage.getItem('truoc')||'');if(!truoc)return false;
  localStorage.setItem('cao',cao);localStorage.setItem('truoc',truoc);return `--truoc ${truoc}`+(cao?` --cao ${cao}`:'');}
-async function chay(ten,k,tiep=false,extra=''){kieu=k;let them=($('them').value+' '+extra).trim();const tc=thamCalib(ten);if(tc===false)return;if(tc)them=tc;const r=await (await fetch('/api/chay',{method:'POST',body:JSON.stringify({ten,kieu:k,tiep,them})})).json();
+async function chay(ten,k,extra=''){kieu=k;let them=($('them').value+' '+extra).trim();const tc=thamCalib(ten);if(tc===false)return;if(tc)them=tc;const r=await (await fetch('/api/chay',{method:'POST',body:JSON.stringify({ten,kieu:k,them})})).json();
  if(!r.ok)alert(r.tb);hinhDangCo.clear();document.querySelectorAll('#hinh figure.dong').forEach(e=>e.remove());}
 function roiCam(){if($('roicam')&&!$('roicam').src){$('roicam').src='http://127.0.0.1:8096/anh/cam.mjpg';$('roicho').style.display='none';}}
 function roiClick(e){const r=$('roicamkhung').getBoundingClientRect();const y=Math.round((e.clientY-r.top)/r.height*480/5)*5;if(e.shiftKey)$('roi2').value=Math.min(480,Math.max(y,1));else $('roi1').value=Math.min(478,Math.max(y,0));roiVe();}
 function roiVe(){const a=+$('roi1').value,b=+$('roi2').value;$('roir').value=a;$('roihop').style.top=(a/480*48)+'px';$('roihop').style.height=(Math.max(b-a,0)/480*48)+'px';if($('roitren')){$('roitren').style.height=(a/4.8)+'%';$('roiduoi').style.height=(Math.max(480-b,0)/4.8)+'%';$('roivien').style.top=(a/4.8)+'%';$('roivien').style.height=(Math.max(b-a,0)/4.8)+'%';}}
-async function pxTai(){try{const r=await (await fetch('/api/nguong_px')).json();$('px_s0').value=r.den_xanh_s0;$('pxtb').textContent='(mặc định '+r.mac_dinh+' px)';}catch(e){}}
-async function pxLuu(){const r=await (await fetch('/api/nguong_px',{method:'POST',body:JSON.stringify({den_xanh_s0:+$('px_s0').value})})).json();$('pxtb').textContent=r.tb;$('pxtb').style.color=r.ok?'var(--xanh)':'var(--do)';}
 async function roiTai(){try{const r=await (await fetch('/api/roi')).json();$('roi1').value=r.y1;$('roi2').value=r.y2;roiVe();}catch(e){}}
 async function roiLuu(){const r=await (await fetch('/api/roi',{method:'POST',body:JSON.stringify({y1:+$('roi1').value,y2:+$('roi2').value})})).json();$('roitb').textContent=r.tb;$('roitb').style.color=r.ok?'var(--xanh)':'var(--do)';}
 async function dung(){await fetch('/api/dung',{method:'POST',body:'{}'});}
@@ -479,7 +453,7 @@ async function vongLog(){try{const r=await (await fetch('/api/log?tu='+tu)).json
  $('trangthai').style.color=r.chay?'var(--xanh)':'var(--mo)';kieu=r.kieu||kieu;}catch(e){} setTimeout(vongLog,400);}
 async function vongXe(){const host=kieu==='gia_lap'?'127.0.0.1':'__XE_IP__';
  try{const c=new AbortController();setTimeout(()=>c.abort(),800);const t=await (await fetch(`http://${host}:8097/trang_thai.json`,{signal:c.signal})).json();
-  $('gd').textContent='giai đoạn '+(t.giai_doan||'-')+(t.chi_tiet?' | '+t.chi_tiet:'');
+  $('gd').textContent='đang chạy '+(t.giai_doan||'-')+(t.chi_tiet?' | '+t.chi_tiet:'');
   $('vw').textContent=`v ${t.v??'-'} w ${t.w??'-'}`;$('goc').textContent=`yaw ${t.yaw??'-'}° pitch ${t.pitch??'-'}° roll ${t.roll??'-'}°`;
   $('qd').textContent=(t.quang_duong??'-')+' m';
   xe3d(t.pitch||0,t.roll||0,t.yaw||0);
@@ -487,7 +461,7 @@ async function vongXe(){const host=kieu==='gia_lap'?'127.0.0.1':'__XE_IP__';
    $('hinh').insertAdjacentHTML('beforeend',`<figure class="dong"><img src="http://${host}:8097/anh/${a}.mjpg"><figcaption>${a}</figcaption></figure>`);}
  }catch(e){} setTimeout(vongXe,120);}
 async function buoc(b){const r=await (await fetch('/api/calib',{method:'POST',body:JSON.stringify({buoc:b})})).json();if(!r.ok)alert(r.tb);}
-ds();pxTai();dlTai();vongLog();vongXe();
+ds();dlTai();vongLog();vongXe();
 </script></body></html>'''
 
 

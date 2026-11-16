@@ -8,7 +8,7 @@ den do, den vang, den xanh, di thang, lan xe bus, nguoi di bo, re phai, re trai,
     bash chay.sh onnx_test                         vùng ROI đã lưu (calib/roi_bien.yaml, chỉnh trên bảng điều khiển)
     bash chay.sh onnx_test --tai-xe                chạy model ngay trên Jetson (chậm), mặc định model chạy trên laptop
     bash chay.sh onnx_test --ca-anh                cả ảnh
-    bash chay.sh onnx_test --vung 380 60 560 260   chỉ vùng (để chọn VUNG_DEN cho S0)
+    bash chay.sh onnx_test --vung 380 60 560 260   chỉ nhận trong vùng này
     python3 cong_cu/onnx_test.py --anh anh.jpg     thử 1 ảnh trên laptop
 """
 import argparse

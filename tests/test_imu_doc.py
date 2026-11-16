@@ -31,9 +31,9 @@ def test_chia_phan_dung_thu_tu_va_so_do():
 def test_goi_y_nam_giua_cac_phan():
     t, qd, p = _profile()
     gy = {ten: gt for ten, _, gt, _ in D.goi_y(D.thong_ke(t, qd, p, D.chia_phan(p)))}
-    assert 0.3 < gy['NGUONG_LEN_DOC_DO'] < 1.0         # trên nhiễu phẳng, dưới dốc lên (~1,2)
-    assert 0.1 < gy['NGUONG_DINH_DO'] < 0.9
-    assert -1.0 < gy['NGUONG_XUONG_DO'] < -0.1
+    assert 0.3 < gy['DOC_LEN_DO'] < 1.0                # trên nhiễu phẳng, dưới dốc lên (~1,2)
+    assert 0.1 < gy['DOC_DINH_DO'] < 0.9
+    assert -1.0 < gy['DOC_XUONG_DO'] < -0.1
 
 
 def test_xe_gia_lap_tu_chay_qua_doc_toi_ham():

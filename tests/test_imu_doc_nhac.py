@@ -9,7 +9,8 @@ from cong_cu import imu_doc as D  # noqa: E402
 
 
 def _ctx(pitch_do, qd=0.0, t=1.0):
-    return SimpleNamespace(thoi_gian=lambda: t, quang_duong=lambda: qd, xe=SimpleNamespace(scan=None),
+    return SimpleNamespace(thoi_gian=lambda: t, quang_duong=lambda: qd,
+                           xe=SimpleNamespace(scan=None, odom=SimpleNamespace(v=0.0)),
                            imu=SimpleNamespace(pitch=math.radians(pitch_do), roll=0.0, yaw=0.0, gz=0.0))
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # CHAMPION - chay 1 script tren XE (Jetson) bang 1 lenh, log hien ngay trong terminal nay.
 #
-#   bash chay.sh <ten> [tham so]   ten = s0_den_xanh .. s7_bam_vach | full_map | imu_test | pid_test
+#   bash chay.sh <ten> [tham so]   ten = xe_tu_hanh | imu_test | imu_doc | pid_test
 #                                        | lidar_test | camera_test | onnx_test
 #                                        | line_debug | tai_jetson   (xem: bash chay.sh danh_sach)
 #   bash chay.sh danh_sach         liet ke moi script
@@ -65,7 +65,7 @@ REMOTE
 }
 
 tim() {  # ten -> duong dan tuong doi
-  for f in "cong_cu/$1.py" "giai_doan/$1.py" "calib/$1.py" "$1.py"; do
+  for f in "cong_cu/$1.py" "calib/$1.py" "$1.py"; do
     [[ -f "$GOC/$f" ]] && { echo "$f"; return 0; }
   done
   return 1
@@ -74,7 +74,7 @@ tim() {  # ten -> duong dan tuong doi
 case "${1:-}" in
   ""|-h|--help) sed -n '2,16p' "$0"; exit 0 ;;
   danh_sach)
-    for f in giai_doan/s*.py full_map.py cong_cu/*.py calib/*.py; do
+    for f in xe_tu_hanh.py cong_cu/*.py calib/*.py; do
       printf '  %-18s %s\n' "$(basename "$f" .py)" "$(sed -n '2p' "$GOC/$f" | sed 's/^"""//')"
     done; exit 0 ;;
   dung) dung; exit 0 ;;
@@ -85,10 +85,10 @@ case "${1:-}" in
     rsync -az "$HOST:$DICH/logs/" "$GOC/logs/" && rsync -az "$HOST:$DICH/calib_moi/" "$GOC/calib_moi/"
     echo "== Da keo ve: $GOC/logs  $GOC/calib_moi"; ls -t "$GOC/logs" | head -5; exit 0 ;;
   nhan_calib)
-    for f in camera.yaml ngoai.yaml bev.yaml duong_s7.csv duong_stop.csv; do
+    for f in camera.yaml ngoai.yaml bev.yaml; do
       if [[ -f "$GOC/calib_moi/$f" ]]; then cp -v "$GOC/calib_moi/$f" "$GOC/calib/$f"; fi
     done
-    echo "== Nho commit:  git add calib && git commit -m 'chore(calib): ...'"; exit 0 ;;
+    echo "== Nho commit calib moi:  git add calib && git commit"; exit 0 ;;
 esac
 
 TEN=$1; shift

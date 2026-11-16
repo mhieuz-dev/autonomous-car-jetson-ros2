@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Đo PITCH trên DỐC: xe chạy thẳng từ chân dốc, lên, giữa dốc, xuống, tới hầm; biết pitch bao nhiêu là LÊN / GIỮA / XUỐNG.
 
-Đặt xe ở CHÂN DỐC, mũi xe thẳng hướng hầm (đúng như bắt đầu S2). Xe giữ yaw = 0 bằng IMU, chạy V_CHAY m/s,
+Đặt xe ở CHÂN DỐC, mũi xe thẳng hướng hầm. Xe giữ yaw = 0 bằng IMU, chạy V_CHAY m/s,
 ghi pitch theo quãng đường (odom), vẽ đồ thị trực tiếp ở bảng điều khiển (hình "pitch": nền màu theo phần
 dốc), mô hình xe 3D xoay theo IMU. Dừng khi LiDAR thấy hầm (cổng 2 tường) rồi chạy thêm XA_THEM_M, hoặc quá
 QUANG_DUONG_TOI_DA. Cuối cùng in BẢNG pitch từng phần (trung vị, p10-p90, nhỏ nhất - lớn nhất) và GỢI Ý
-ngưỡng cho S1, S2, S3; lưu CSV + bảng vào logs/ (bash chay.sh keo để kéo về).
+ngưỡng dốc cho tu_hanh/tham_so.py; lưu CSV + bảng vào logs/ (bash chay.sh keo để kéo về).
+Pitch ghi lại đã trừ phần xe ngóc mũi theo tốc độ (NGOC_MUI_DO * v^2), cùng cách xe tự hành so ngưỡng.
 
     bash chay.sh imu_doc               xe TỰ CHẠY (cần ~5 m trống phía trước)
     bash chay.sh imu_doc --tay         xe ĐỨNG YÊN, bạn ĐẨY BẰNG TAY qua dốc (odom đo quãng đường), Ctrl+C khi xong
@@ -20,10 +21,10 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from chung import cau_hinh, khung  # noqa: E402
+from chung import cau_hinh, ham, khung  # noqa: E402
 from chung.log import log  # noqa: E402
 from chung.pid import GiuHuong  # noqa: E402
-from giai_doan import s5_ham  # noqa: E402
+from tu_hanh import tham_so as TS  # noqa: E402
 
 # ===== THAM SỐ (sửa, Ctrl+S, chạy lại) =====================================
 V_CHAY = 0.20              # m/s khi tự chạy
@@ -127,15 +128,15 @@ def goi_y(st):
     phang = st.get('PHANG')
     if phang and 'LEN' in st:
         nhieu = max(abs(phang['p5']), abs(phang['p95']))
-        gy.append(('NGUONG_LEN_DOC_DO', 's1_xuat_phat.py', round(max((nhieu + st['LEN']['p25']) / 2, nhieu + 0.15), 2),
+        gy.append(('DOC_LEN_DO', 'tu_hanh/tham_so.py', round(max((nhieu + st['LEN']['p25']) / 2, nhieu + 0.15), 2),
                    f'giữa nhiễu phẳng (±{nhieu:.2f}) và LÊN (p25 {st["LEN"]["p25"]:+.2f})'))
     if 'LEN' in st:
         sau = st['GIUA']['p90'] if 'GIUA' in st else 0.0
-        gy.append(('NGUONG_DINH_DO', 's2_len_doc.py', round(max((st['LEN']['p25'] + max(sau, 0.0)) / 2, 0.15), 2),
+        gy.append(('DOC_DINH_DO', 'tu_hanh/tham_so.py', round(max((st['LEN']['p25'] + max(sau, 0.0)) / 2, 0.15), 2),
                    f'giữa LÊN (p25 {st["LEN"]["p25"]:+.2f}) và đỉnh ({max(sau, 0.0):+.2f})'))
     if 'XUONG' in st:
         truoc = st['GIUA']['p10'] if 'GIUA' in st else 0.0
-        gy.append(('NGUONG_XUONG_DO', 's3_dinh_doc.py', round(min((st['XUONG']['p75'] + min(truoc, 0.0)) / 2, -0.15), 2),
+        gy.append(('DOC_XUONG_DO', 'tu_hanh/tham_so.py', round(min((st['XUONG']['p75'] + min(truoc, 0.0)) / 2, -0.15), 2),
                    f'giữa đỉnh ({min(truoc, 0.0):+.2f}) và XUỐNG (p75 {st["XUONG"]["p75"]:+.2f})'))
     return gy
 
@@ -160,7 +161,7 @@ class GiaiDoan(khung.GiaiDoanCoSo):
         self.THOI_GIAN_TOI_DA = THOI_GIAN_TOI_DA
         self.KHONG_GUI = self.TAY        # đẩy tay: khung KHÔNG gửi /cmd_vel (driver khỏi giữ bánh, tay đẩy nhẹ)
         self.huong = GiuHuong(KP_HUONG, KI_HUONG, KD_HUONG, W_MAX)
-        self.ham = s5_ham.DemHam()
+        self.ham = ham.DemHam()
         self.qd_ham = None
         self.h = {'t': [], 'qd': [], 'pitch': [], 'roll': []}
         self.pha = 'PHANG'
@@ -186,7 +187,7 @@ class GiaiDoan(khung.GiaiDoanCoSo):
             return khung.KetThuc(f'xe bị nhấc / lật (pitch {p_tho:+.1f} độ)')
         h['t'].append(ctx.thoi_gian())
         h['qd'].append(ctx.quang_duong())
-        h['pitch'].append(math.degrees(ctx.imu.pitch))
+        h['pitch'].append(p_tho - TS.NGOC_MUI_DO * ctx.xe.odom.v ** 2)
         h['roll'].append(math.degrees(ctx.imu.roll))
         nhan = chia_phan(h['pitch'])[-1]
         if nhan != self.pha:
@@ -194,7 +195,7 @@ class GiaiDoan(khung.GiaiDoanCoSo):
             log(f'>>> PHẦN: {TEN_PHAN[nhan]}  (pitch {h["pitch"][-1]:+.2f} độ, đã đi {h["qd"][-1]:.2f} m)')
         if self.TAY:
             return 0.0, 0.0
-        if self.ham.cap_nhat(ctx.xe.scan) >= s5_ham.SO_KHUNG_VAO and self.qd_ham is None:
+        if self.ham.cap_nhat(ctx.xe.scan) >= ham.SO_KHUNG_VAO and self.qd_ham is None:
             self.qd_ham = ctx.quang_duong()
             log(f'>>> LiDAR thấy HẦM tại {self.qd_ham:.2f} m')
         if self.qd_ham is not None and ctx.quang_duong() - self.qd_ham >= XA_THEM_M:

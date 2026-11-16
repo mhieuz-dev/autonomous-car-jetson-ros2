@@ -228,6 +228,11 @@ def chay_mot(gd, ctx):
     return kq
 
 
+def _lop(mod):
+    """Lớp chạy được trong module: ChuongTrinh (tu_hanh/lai_xe.py) hoặc GiaiDoan (giai_doan/, cong_cu/imu_doc.py)."""
+    return getattr(mod, 'ChuongTrinh', None) or mod.GiaiDoan
+
+
 def chay(ds_ten, gia_lap=False, ghi_bag=True, nhanh=False, xem_cong=cau_hinh.CONG_XEM, xe=None):
     """Chạy lần lượt các giai đoạn trong ds_ten. Trả (mã thoát, ngữ cảnh)."""
     _bat_tin_hieu()
@@ -240,7 +245,7 @@ def chay(ds_ten, gia_lap=False, ghi_bag=True, nhanh=False, xem_cong=cau_hinh.CON
     if not nhanh:
         log(f'Log: {mo_file(ten_log + ("_gialap" if gia_lap else ""))}')
     mods = [importlib.import_module(t if '.' in t else f'giai_doan.{t}') for t in ds_ten]
-    can_cam = any(m.GiaiDoan.CAN_CAMERA for m in mods)
+    can_cam = any(_lop(m).CAN_CAMERA for m in mods)
     if xe is None:
         if gia_lap:
             from .gia_lap import XeGiaLap
@@ -266,7 +271,7 @@ def chay(ds_ten, gia_lap=False, ghi_bag=True, nhanh=False, xem_cong=cau_hinh.CON
         ctx.du_lieu['imu_hieu_chuan'] = hieu_chuan_imu(xe, imu)
         i = 0
         while i < len(mods):
-            gd = mods[i].GiaiDoan()
+            gd = _lop(mods[i])()
             log(f'==> VÀO {gd.TEN}')
             kq = chay_mot(gd, ctx)
             log(f'<== RA  {gd.TEN}: {kq.ly_do} (sau {ctx.thoi_gian():.1f} s, {ctx.quang_duong():.2f} m)')

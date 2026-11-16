@@ -196,7 +196,9 @@ class DieuKhienLan:
             self.so_khung += 1
         return self.lenh(kq, ctx.imu, dt, v_bam)
 
-    def lenh(self, kq, imu, dt, v_bam=V_BAM):
+    def lenh(self, kq, imu, dt, v_bam=V_BAM, t=None):
+        if t is not None:
+            self._t = t
         if not kq.thay:
             self.t_mat += dt
             if self.yaw_giu is None:

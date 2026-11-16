@@ -29,9 +29,27 @@ def test_lech_trai_thi_khoang_cach_tang():
     assert abs(kq.khoang_cach_truoc - 0.25) < 0.015
 
 
+def _do_nhieu_khung(x, y, yaw_do, so_khung=6):
+    """Bộ dò giữ độ cong lọc Kalman qua nhiều khung; một khung đơn lẻ còn nhiễu
+    (góc psi ngoại suy từ độ cong), nên đo góc sau vài khung liên tiếp như khi chạy thật."""
+    dv = tao_bo_do(gia_lap=True)
+    kq = None
+    for _ in range(so_khung):
+        XE.x, XE.y, XE.yaw = x, y, math.radians(yaw_do)
+        XE.t += 0.1
+        jpeg, _ = XE.anh_jpeg()
+        kq = dv.xu_ly(giai_nen_xam_nua(jpeg), XE.t)
+    return kq
+
+
 def test_xe_quay_trai_thi_vach_lech_phai():
-    kq = _do(5.0, 1.8, 95)
+    kq = _do_nhieu_khung(5.0, 1.8, 95)
     assert kq.psi < math.radians(-3)
+
+
+def test_xe_quay_phai_thi_vach_lech_trai():
+    kq = _do_nhieu_khung(5.0, 1.8, 85)
+    assert kq.psi > math.radians(3)
 
 
 def test_bo_vet_sang_gia_6cm_va_vach_ngang():

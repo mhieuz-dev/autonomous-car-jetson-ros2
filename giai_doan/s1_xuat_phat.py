@@ -28,7 +28,7 @@ from chung.lidar import diem_xy  # noqa: E402
 from chung.log import log  # noqa: E402
 from chung.ve import lidar_tren_xuong, luoi  # noqa: E402
 from giai_doan import s5_ham  # noqa: E402
-from giai_doan.s7_bam_vach import DieuKhienLan  # noqa: E402
+from chung.bam_vach import DieuKhienLan  # noqa: E402
 
 # ===== THAM SỐ (sửa, Ctrl+S, chạy lại) =====================================
 V_CHAY = 0.5              # m/s khi bám vạch trước dốc

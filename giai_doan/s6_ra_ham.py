@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from chung import khung  # noqa: E402
 from chung.pid import GiuHuong  # noqa: E402
-from giai_doan.s7_bam_vach import BamVach  # noqa: E402
+from chung.bam_vach import BamVach  # noqa: E402
 
 # ===== THAM SỐ (sửa, Ctrl+S, chạy lại) =====================================
 V_TROI = 0.15

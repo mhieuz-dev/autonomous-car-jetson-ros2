@@ -8,43 +8,23 @@
   - Khúc cua: tường phía trước < BEND_FRONT -> chậm lại, quẹo BEND_OMEGA về phía nhìn xa hơn.
   - Gỡ kẹt (MỚI, không có ở 04a): bị chặn mũi hoặc bánh không lăn quá GO_KET_SAU s thì
     lùi thẳng LUI_QUANG_DUONG m (nhìn LiDAR phía sau), rồi quét lại và đi tiếp.
-Các tham số tường ở đây cũng được S3, S4 dùng để biết đã tới hầm.
+Nhận cổng hầm và luật lái 04a nằm ở chung/ham.py (S3, S4 cũng dùng để biết đã tới hầm).
 Chạy riêng: đặt xe trước miệng hầm  bash chay.sh s5_ham
 """
 import math
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from chung import cau_hinh, khung  # noqa: E402
+from chung.ham import (BEND_FRONT, P, SIDE_DEG, SO_KHUNG_RA, SO_KHUNG_VAO, V_HAM, WALL_MAX,  # noqa: E402,F401
+                       DemHam, lenh_lai)
+from chung.lidar import CuaHam, range_in_cone, tunnel_pose  # noqa: E402
 from chung.log import log  # noqa: E402
-from chung.lidar import CuaHam, cong_ham, range_in_cone, tunnel_pose  # noqa: E402
 from chung.pid import GiuHuong  # noqa: E402
 from chung.ve import lidar_tren_xuong  # noqa: E402
 
-# ===== THAM SỐ (giá trị đúng như lúc 04a chạy trên xe, car_onboard.sh) ======
-WIDTH = 0.77               # tổng khoảng cách trái + phải tới tường (m)
-WIDTH_TOL = 0.08
-WALL_MAX = 0.70            # mỗi bên không xa hơn
-SIDE_DEG = 12.0            # nửa góc nón nhìn ngang
-WALL_FIT_MIN = 0.08        # điểm tường dùng để khớp: khoảng cách trong [MIN, MAX]
-WALL_FIT_MAX = 0.95
-WALL_FIT_MIN_PTS = 10
-PSI_MAX = 0.45             # rad
-KAPPA_MAX = 3.2            # 1/m
-BEND_FRONT = 0.60          # tường trước < số này = khúc cua
-BEND_OMEGA = 0.6           # rad/s khi quẹo ở khúc cua
-
-V_HAM = 0.13               # m/s (04a là 0.13, user chốt 0.15)
-K_E = 5.0                  # luật lái 04a
-K_PSI = 3.5
-K_FF = 1.0
-EDGE_MARGIN = 0.12
-EDGE_BOOST = 2.0
-EDGE_BOOST_MAX = 4.0
-SO_KHUNG_VAO = 3
-SO_KHUNG_RA = 6
+# ===== THAM SỐ (luật lái và nhận cổng hầm nằm ở chung/ham.py) ===========
 GO_KET_BAT = False         # TẮT mặc định (user chốt 10/10: hầm giữ đúng 04a). True = bật gỡ kẹt
 GO_KET_SAU = 1.5           # bị chặn mũi / lệnh chạy mà bánh không lăn quá bấy nhiêu giây ...
 LUI_V = -0.08              # ... thì lùi THẲNG với tốc độ này
@@ -53,36 +33,6 @@ SAU_TRONG_M = 0.08         # dừng lùi sớm nếu sau cản sau còn ít hơn
 QUANG_DUONG_CHO_VAO = 1.0  # chạy riêng S5: chạy thẳng tìm hầm tối đa bấy nhiêu mét
 THOI_GIAN_TOI_DA = 45.0
 # ===========================================================================
-
-P = SimpleNamespace(WIDTH=WIDTH, WIDTH_TOL=WIDTH_TOL, WALL_MAX=WALL_MAX, SIDE_DEG=SIDE_DEG,
-                    WALL_FIT_MIN=WALL_FIT_MIN, WALL_FIT_MAX=WALL_FIT_MAX,
-                    WALL_FIT_MIN_PTS=WALL_FIT_MIN_PTS, PSI_MAX=PSI_MAX, KAPPA_MAX=KAPPA_MAX,
-                    BEND_FRONT=BEND_FRONT, BEND_OMEGA=BEND_OMEGA)
-
-
-class DemHam:
-    """Đếm số khung LiDAR liên tiếp thấy cổng hầm (chỉ đếm khi có scan MỚI)."""
-
-    def __init__(self):
-        self.t_scan = None
-        self.lien = 0
-
-    def cap_nhat(self, scan):
-        if scan is None or scan.t == self.t_scan:
-            return self.lien
-        self.t_scan = scan.t
-        self.lien = self.lien + 1 if cong_ham(scan, P) is not None else 0
-        return self.lien
-
-
-def lenh_lai(offset, psi, kappa, v):
-    """Luật lái bản 04a (Controller.steer + apply ở trạng thái TUNNEL)."""
-    excess = abs(offset) - EDGE_MARGIN
-    boost = 1.0
-    if excess > 0.0:
-        boost = min(1.0 + EDGE_BOOST * (excess / max(EDGE_MARGIN, 1e-3)), EDGE_BOOST_MAX)
-    kappa_lenh = K_FF * kappa + (boost * K_E * offset + K_PSI * psi)
-    return v * kappa_lenh
 
 
 class GiaiDoan(khung.GiaiDoanCoSo):

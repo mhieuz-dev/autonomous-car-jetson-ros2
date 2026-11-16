@@ -183,7 +183,7 @@ def main():
 
     # ---- bird's eye + 8 ô dò vạch, luồng riêng, luôn lấy khung mới nhất ----
     def luong_birdeye():
-        from giai_doan.s7_bam_vach import tao_bo_do
+        from chung.bam_vach import tao_bo_do
         try:
             do = tao_bo_do(False)
         except Exception as e:  # noqa: BLE001 - thiếu calib: báo rồi thôi, các hình khác vẫn chạy

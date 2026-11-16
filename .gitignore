@@ -1,0 +1,23 @@
+# Ghi chu noi bo, khong dua len git
+memory.md
+
+# Moi truong / file sinh ra
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Log, bag, anh calib chup tren xe (keo ve bang `chay.sh keo`)
+logs/
+calib_moi/
+
+# Tai lieu: chi giu .tex, PDF va file phu sinh lai duoc
+docs/*.pdf
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+docs/*.xdv
+
+# Engine TensorRT build rieng tren tung may
+models/*.engine

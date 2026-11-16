@@ -1,0 +1,6 @@
+numpy
+opencv-python-headless
+pyyaml
+onnxruntime
+pytest
+# rclpy: dung ban ROS 2 Humble he thong (source /opt/ros/humble/setup.bash)

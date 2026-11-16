@@ -1,0 +1,34 @@
+<div class="buoc" id="b4b"><h2>Bạn TỰ CHỌN ứng viên tốt nhất và tham số bird's eye</h2><ol>
+<li>Sau khi chốt ở birdeye_banco (đủ 2-3 lần, mỗi lần đặt bàn cờ chỗ khác), bấm <b>Kéo kết quả từ xe</b>, rồi <b>Tải bảng</b>.</li>
+<li><b>Tick các lần muốn dùng</b> (nhiều lần = lấy trung vị). Nên bỏ lần có KHÔNG ĐẠT hoặc chiều cao / độ chúi lệch xa các lần còn lại.</li>
+<li>Bấm <b>Gợi ý vùng nhìn</b> để điền sẵn theo phần sàn camera thấy rõ, rồi <b>tự sửa</b>: x gần / x xa (m phía trước tâm xe), y trái / y phải (m, trái dương), độ phân giải (mm mỗi pixel). Bấm <b>Xem thử</b> để thấy bird's eye với đúng các số đó.</li>
+<li>Ưng ý thì <b>Lưu lựa chọn</b>, rồi bấm <b>Dùng số này</b> để đưa vào <code>calib/</code>.</li></ol>
+<button class="nut phu" onclick="buoc('keo')">Kéo kết quả từ xe</button> <button class="nut phu" onclick="taiUV()">Tải bảng</button>
+<div id="uv" class="mo" style="margin-top:8px">Chưa tải bảng.</div>
+<div style="margin-top:8px">
+x gần <input id="xg" type="number" step="0.01" style="width:70px"> x xa <input id="xx" type="number" step="0.01" style="width:70px">
+y trái <input id="yt" type="number" step="0.01" style="width:70px"> y phải <input id="yp" type="number" step="0.01" style="width:70px">
+mm/px <input id="mmpx" type="number" step="0.5" style="width:60px"></div>
+<button class="nut phu" onclick="goiY()">Gợi ý vùng nhìn</button> <button class="nut" onclick="xemThu()">Xem thử</button> <button class="nut" onclick="luuChon()">Lưu lựa chọn</button> <button class="nut" onclick="buoc('nhan_ngoai')">Dùng số này (đưa vào calib/)</button>
+<div id="gy" class="mo" style="margin-top:8px"></div></div>
+<script>
+function dsChon(){return [...document.querySelectorAll('.uvchk:checked')].map(e=>e.value).join(',');}
+async function taiUV(){const r=await fetch('/api/bev/ung_vien');const d=await r.json();
+ if(d.loi){$('uv').textContent='Lỗi: '+d.loi;return;}
+ if(!d.length){$('uv').textContent='Chưa có lần chốt nào. Chạy bước 4, chốt, rồi bấm "Kéo kết quả từ xe".';return;}
+ $('uv').innerHTML='<table style="border-collapse:collapse;font-size:12px"><tr><th></th><th>lần</th><th>cao cm</th><th>chúi°</th><th>nghiêng°</th><th>yaw°</th><th>RMS px</th><th>ô vuông</th><th>cỡ ô</th><th>đạt</th></tr>'+
+ d.map(u=>`<tr style="border-top:1px solid #333"><td><input class="uvchk" type="checkbox" value="${u.n}" ${u.dat===u.tong?'checked':''}></td><td>${u.n}</td><td>${(u.cao_m*100).toFixed(2)}</td><td>${u.pitch_do.toFixed(2)}</td><td>${u.roll_do.toFixed(2)}</td><td>${u.yaw_do.toFixed(2)}</td><td>${u.rms_px.toFixed(2)}</td><td>${u.o_vuong??'-'}</td><td>${u.co_o??'-'}</td><td style="color:${u.dat===u.tong?'#3ddc84':'#ffc53d'}">${u.dat}/${u.tong}</td></tr>`).join('')+'</table>';}
+async function goiY(){const ds=dsChon();if(!ds){alert('Tick ít nhất một lần.');return;}
+ const d=await (await fetch('/api/bev/de_xuat?ds='+ds)).json();if(d.loi){alert(d.loi);return;}
+ $('xg').value=d.x_gan;$('xx').value=d.x_xa;$('yt').value=d.y_trai;$('yp').value=d.y_phai;$('mmpx').value=d.mm_px;
+ $('gy').innerHTML='Gợi ý: sàn gần nhất camera thấy được từ x = '+d.x_thay_gan_nhat+' m; x xa chọn nơi 1 hàng ảnh còn ≤ 15 mm mặt sàn.<br><table style="border-collapse:collapse;font-size:12px"><tr><th>x (m)</th><th>mm / hàng ảnh</th><th>bề rộng nhìn thấy (m)</th></tr>'+d.bang.map(b=>`<tr><td>${b.x}</td><td>${b.mm_hang}</td><td>${b.rong}</td></tr>`).join('')+'</table>';}
+function qBev(){return `ds=${dsChon()}&xg=${$('xg').value}&xx=${$('xx').value}&yt=${$('yt').value}&yp=${$('yp').value}&mm=${$('mmpx').value}`;}
+async function xemThu(){const ds=dsChon();if(!ds){alert('Tick ít nhất một lần.');return;}
+ const r=await fetch('/api/bev/xem.jpg?'+qBev()+'&t='+Date.now());
+ if(!r.ok){const e=await r.json();alert(e.loi||'lỗi');return;}
+ const u=URL.createObjectURL(await r.blob());let f=document.getElementById('xemthu');
+ if(!f){document.getElementById('hinh').insertAdjacentHTML('afterbegin','<figure id="xemthu"><img><figcaption>xem thử bird\'s eye (lưới 10 cm)</figcaption></figure>');f=document.getElementById('xemthu');}
+ f.querySelector('img').src=u;}
+async function luuChon(){const ds=dsChon().split(',').filter(Boolean).map(Number);
+ const r=await (await fetch('/api/bev/luu',{method:'POST',body:JSON.stringify({ds,xg:$('xg').value,xx:$('xx').value,yt:$('yt').value,yp:$('yp').value,mm:$('mmpx').value})})).json();alert(r.tb);}
+</script>

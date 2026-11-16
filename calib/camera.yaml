@@ -1,0 +1,21 @@
+# Camera MOI, calib nguoi dung cung cap 10/10/2026 (Downloads/intrinsics.yaml): ban co 10x7 goc trong, o 19 mm, calibration_passed True
+image_width: 640
+image_height: 480
+camera_name: csi_cam_moi
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [552.8299238947094, 0.0, 311.4281041549987, 0.0, 551.8950953164576, 239.41760707962735, 0.0, 0.0, 1.0]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [0.2035686563153075, -1.1216824373573722, -0.0017042464545759424, 0.0013861178174527312, 1.7452120468843455]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [552.8299238947094, 0.0, 311.4281041549987, 0.0, 0.0, 551.8950953164576, 239.41760707962735, 0.0, 0.0, 0.0, 1.0, 0.0]

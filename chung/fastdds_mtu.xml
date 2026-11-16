@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- 09/10: the phone hotspot drops IP fragments from the car to the laptop: UDP up to 1472 bytes
+     arrives, 1600 bytes and more does not, so camera (~35 kB) and /scan (~3 kB) never reached the
+     laptop while /imu and /odom did. Keep every RTPS datagram under the MTU (Fast DDS splits big
+     samples itself) and keep shared memory for traffic inside the car.
+     Used on the car as /engines/fastdds_mtu.xml via FASTRTPS_DEFAULT_PROFILES_FILE. -->
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <transport_descriptors>
+    <transport_descriptor>
+      <transport_id>udp_mtu</transport_id>
+      <type>UDPv4</type>
+      <maxMessageSize>1400</maxMessageSize>
+    </transport_descriptor>
+    <transport_descriptor>
+      <transport_id>shm</transport_id>
+      <type>SHM</type>
+    </transport_descriptor>
+  </transport_descriptors>
+  <participant profile_name="crc_mtu_participant" is_default_profile="true">
+    <rtps>
+      <userTransports>
+        <transport_id>shm</transport_id>
+        <transport_id>udp_mtu</transport_id>
+      </userTransports>
+      <useBuiltinTransports>false</useBuiltinTransports>
+    </rtps>
+  </participant>
+</profiles>

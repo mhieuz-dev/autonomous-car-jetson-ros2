@@ -5,6 +5,8 @@ hầm có khúc cua TRÁI 90 độ -> ra hầm -> đường có vạch liền ph
 một vệt sáng giả rộng 6 cm và một vạch dừng ngang để thử bộ dò vạch.
 Sinh đủ IMU 100 Hz, /scan 10 Hz (360 tia), odom 25 Hz, camera 15 Hz (ảnh JPEG
 méo đúng như calib), nên MỌI script giai đoạn chạy y như trên xe thật.
+Vị trí dốc và hầm tính theo quãng đường s dọc tim đường (doan_doc, ham), nên
+đổi chỗ được để thử xe gặp tình huống theo thứ tự khác.
 Đây là sa bàn tượng trưng để kiểm luồng code, KHÔNG thay được thử trên xe.
 """
 import math
@@ -54,8 +56,10 @@ class XeGiaLap:
     gia_lap = True
 
     def __init__(self, can_camera=False, nhanh=False, t_xanh=3.0, co_nguoi=True, w_troi=0.03,
-                 doc_len=6.0, doc_xuong=-5.0, he_so_toc_do=0.0):
-        self.doc_len, self.doc_xuong = doc_len, doc_xuong     # độ dốc lên / xuống (độ)
+                 doc_len=6.0, doc_xuong=-5.0, he_so_toc_do=0.0, doan_doc=None, ham=(4.0, 6.485)):
+        # [(s đầu, s cuối, độ dốc)] dọc tim đường; mặc định dốc lên rồi xuống ngay trước hầm
+        self.doan_doc = doan_doc if doan_doc is not None else [(2.0, 2.7, doc_len), (3.3, 3.8, doc_xuong)]
+        self.ham = ham           # (s vào, s ra) của hầm, None = sa bàn không có hầm
         self.den_lich = []       # [(t_bat_dau, t_ket_thuc, 'den do'|'den vang'|'den xanh', cao_px)] đèn dọc đường (giả lập)
         self.he_so_toc_do = he_so_toc_do     # xe ngóc mũi thêm he_so * v^2 độ khi chạy (xe thật: ~30)
         self.nhanh = nhanh
@@ -91,7 +95,9 @@ class XeGiaLap:
         return self.tim[m] + lech * self.phap[m]
 
     def _lam_tuong(self):
-        s_vao, s_ra = 4.0, 6.485
+        if self.ham is None:
+            return np.empty((0, 4))
+        s_vao, s_ra = self.ham
         segs = []
         for lech in (+HAM_RONG / 2, -HAM_RONG / 2):
             p = self._doan(s_vao, s_ra, lech)[::2]
@@ -151,12 +157,13 @@ class XeGiaLap:
     # ------------------------------------------------------------ vật lý ---
     def _pitch_dich(self):
         toc_do = math.radians(self.he_so_toc_do * self.v * self.v)       # xe thật ngóc mũi khi chạy nhanh
-        if abs(self.y) > 0.6 or self.x > 3.4:
+        d = np.hypot(self.tim[:, 0] - self.x, self.tim[:, 1] - self.y)
+        i = int(np.argmin(d))
+        if d[i] > 0.6:                     # ra khỏi đường thì coi như sàn phẳng
             return toc_do
-        if 1.5 <= self.x < 2.2:
-            return math.radians(self.doc_len) + toc_do
-        if 2.8 <= self.x < 3.3:
-            return math.radians(self.doc_xuong) + toc_do
+        for s0, s1, do in self.doan_doc:
+            if s0 <= self.s[i] < s1:
+                return math.radians(do) + toc_do
         return toc_do
 
     def _buoc(self, h):

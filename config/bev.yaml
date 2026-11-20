@@ -1,6 +1,6 @@
 # vung nhin + do phan giai bird's eye, chon tay 10/10 15:20
-x_gan: 0.39
-x_xa: 1.0
-y_trai: 0.5
-y_phai: -0.7
+x_near: 0.39
+x_far: 1.0
+y_left: 0.5
+y_right: -0.7
 m_px: 0.005

@@ -7,7 +7,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
-# Log, bag, anh calib chup tren xe (keo ve bang `scripts/car.sh keo`)
+# Log, bag, anh calib chup tren xe (keo ve bang `scripts/car.sh pull`)
 logs/
 calib_new/
 

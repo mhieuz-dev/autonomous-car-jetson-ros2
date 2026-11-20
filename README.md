@@ -36,13 +36,13 @@ Every behaviour is asked at every step whether it needs control, even when a hig
 
 | Priority | Behaviour | Takes control when | What it does |
 |---|---|---|---|
-| 1 | `cho_nguoi` | LiDAR sees an object in a 30 cm wide band in front of the car, less than 30 cm from the bumper plus a reaction distance | Stands still until the band has been clear for 1 s |
-| 2 | `dung_den` | A red or yellow light is close enough (its box is at least 40 px tall) | Stands still until green is seen for about 1 s. After 20 s it gives up and ignores lights for 5 s, so a misdetection cannot block the run |
-| 3 | `dung_stop` | A STOP sign is close enough | Stands still for 1 s, then ignores STOP for 6 s to drive past the sign |
-| 4 | `qua_ham` | LiDAR sees two walls at the tunnel width | Follows the centre of the corridor with LiDAR only, slows down and turns towards the open side in bends |
-| 5 | `qua_doc` | The IMU says the car is on a ramp | Holds the heading it had at the foot of the ramp. Never stops or reverses on a ramp, so the three behaviours above are ignored there |
-| 6 | `ra_ham` | The car has just left the tunnel | Holds its exit heading at low speed until the camera has the lane line for 5 frames in a row (at least 0.5 s, at most 2 s) |
-| 7 | `bam_vach` | Always (the default) | Follows the right lane line. Keeps the line's curvature through short gaps, stops and turns right to look for the line when it is lost or jumps to the wrong line |
+| 1 | `pedestrian` | LiDAR sees an object in a 30 cm wide band in front of the car, less than 30 cm from the bumper plus a reaction distance | Stands still until the band has been clear for 1 s |
+| 2 | `traffic_light` | A red or yellow light is close enough (its box is at least 40 px tall) | Stands still until green is seen for about 1 s. After 20 s it gives up and ignores lights for 5 s, so a misdetection cannot block the run |
+| 3 | `stop_sign` | A STOP sign is close enough | Stands still for 1 s, then ignores STOP for 6 s to drive past the sign |
+| 4 | `tunnel` | LiDAR sees two walls at the tunnel width | Follows the centre of the corridor with LiDAR only, slows down and turns towards the open side in bends |
+| 5 | `ramp` | The IMU says the car is on a ramp | Holds the heading it had at the foot of the ramp. Never stops or reverses on a ramp, so the three behaviours above are ignored there |
+| 6 | `tunnel_exit` | The car has just left the tunnel | Holds its exit heading at low speed until the camera has the lane line for 5 frames in a row (at least 0.5 s, at most 2 s) |
+| 7 | `lane_follow` | Always (the default) | Follows the right lane line. Keeps the line's curvature through short gaps, stops and turns right to look for the line when it is lost or jumps to the wrong line |
 
 Under all of them, the safety layer stops the car on `Ctrl+C`, on an emergency stop file or when a sensor goes silent, limits acceleration, and corrects the turn rate with the gyro.
 
@@ -66,24 +66,24 @@ cd autonomous-car-jetson-ros2
 uv venv .venv --python 3.10          # or: python3.10 -m venv .venv
 uv pip install -r requirements.txt   # or: .venv/bin/pip install -r requirements.txt
 
-.venv/bin/python run_car.py --gia-lap --nhanh --khong-ghi --toi-da 70   # drive the track, about 7 s of wall time
+.venv/bin/python run_car.py --sim --fast --no-record --max-time 70   # drive the track, about 7 s of wall time
 .venv/bin/python -m pytest -q                                              # 67 tests, about 40 s
 ```
 
 The log shows each decision as it happens:
 
 ```
-HÀNH VI: - -> bam_vach
-HÀNH VI: bam_vach -> cho_nguoi (người cách LiDAR 0.56 m (lần 1))
-HÀNH VI: cho_nguoi -> bam_vach
-HÀNH VI: bam_vach -> qua_doc (dốc len)
-HÀNH VI: qua_doc -> bam_vach
-HÀNH VI: bam_vach -> qua_ham (LiDAR thấy 2 tường)
-HÀNH VI: qua_ham -> ra_ham (vừa ra hầm)
-HÀNH VI: ra_ham -> bam_vach
+HÀNH VI: - -> lane_follow
+HÀNH VI: lane_follow -> pedestrian (người cách LiDAR 0.56 m (lần 1))
+HÀNH VI: pedestrian -> lane_follow
+HÀNH VI: lane_follow -> ramp (dốc up)
+HÀNH VI: ramp -> lane_follow
+HÀNH VI: lane_follow -> tunnel (LiDAR thấy 2 tường)
+HÀNH VI: tunnel -> tunnel_exit (vừa ra hầm)
+HÀNH VI: tunnel_exit -> lane_follow
 ```
 
-`HÀNH VI` means behaviour. The car does not know where the track ends, so the run stops at the `--toi-da` time limit (in seconds), or with `Ctrl+C`.
+`HÀNH VI` means behaviour. The car does not know where the track ends, so the run stops at the `--max-time` time limit (in seconds), or with `Ctrl+C`.
 
 ## Running on the car
 
@@ -92,8 +92,8 @@ The car needs a Jetson with ROS 2 Humble and a container named `crc_car` (change
 ```bash
 export CRC_HOST=jetson@<car-ip>
 bash scripts/car.sh run_car        # copy the code to the car and drive
-bash scripts/car.sh dung              # emergency stop
-bash scripts/car.sh danh_sach         # list every script and tool
+bash scripts/car.sh stop              # emergency stop
+bash scripts/car.sh list         # list every script and tool
 python3 tools/control_panel.py     # control panel on the laptop: calibration, live views, buttons
 ```
 
@@ -116,7 +116,7 @@ python3 tools/control_panel.py     # control panel on the laptop: calibration, l
 | `tests/` | 67 tests, most of them on the simulator |
 | `scripts/car.sh`, `tools/control_panel.py` | One-command runner for the car, laptop control panel |
 
-Code comments and log messages are in Vietnamese, since this was written by a Vietnamese team for a Vietnamese contest. The names of files, behaviours and parameters are Vietnamese too (`autonomy` is "autonomous", `perception` is "perception", `hanh_vi` is "behaviour", `bam_vach` is "line following").
+Code comments and log messages are in Vietnamese, since this was written by a Vietnamese team for a Vietnamese contest. The names of files, behaviours and parameters are Vietnamese too (`autonomy` is "autonomous", `perception` is "perception", `behavior` is "behaviour", `lane_follow` is "line following").
 
 ## What changed since the contest
 

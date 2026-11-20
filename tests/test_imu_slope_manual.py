@@ -1,24 +1,24 @@
-"""imu_slope --tay: khung KHÔNG được gửi lệnh nào trong lúc ghi (để tay đẩy được bánh)."""
+"""imu_slope --manual: khung KHÔNG được gửi lệnh nào trong lúc ghi (để tay đẩy được bánh)."""
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core import runtime  # noqa: E402
-from core.simulator import XeGiaLap  # noqa: E402
-from tools import imu_slope as D  # noqa: E402
+from core import runtime           # noqa: E402
+from core.simulator import SimCar  # noqa: E402
+from tools import imu_slope as D   # noqa: E402
 
 
-def test_che_do_tay_khong_gui_lenh(monkeypatch):
-    monkeypatch.setattr(D, 'THOI_GIAN_TOI_DA', 3.0)
-    monkeypatch.setattr(D.ChuongTrinh, 'TAY', True)
-    xe = XeGiaLap(can_camera=False, nhanh=True)
-    n = {'goi': 0, 'dau': None, 'cuoi': None}
-    goc = xe.gui
-    xe.gui = lambda v, w: (n.__setitem__('goi', n['goi'] + 1), goc(v, w))[1]
-    bd, kt = D.ChuongTrinh.bat_dau, D.ChuongTrinh.ket_thuc
-    monkeypatch.setattr(D.ChuongTrinh, 'bat_dau', lambda self, ctx: (n.__setitem__('dau', n['goi']), bd(self, ctx))[1])
-    monkeypatch.setattr(D.ChuongTrinh, 'ket_thuc', lambda self, ctx, ly: (n.__setitem__('cuoi', n['goi']), kt(self, ctx, ly))[1])
-    runtime.chay('tools.imu_slope', gia_lap=True, ghi_bag=False, nhanh=True, xem_cong=None, xe=xe)
+def test_manual_mode_sends_no_commands(monkeypatch):
+    monkeypatch.setattr(D, 'MAX_RUN_TIME', 3.0)
+    monkeypatch.setattr(D.Program, 'MANUAL', True)
+    car = SimCar(need_camera=False, fast=True)
+    n = {'calls': 0, 'first': None, 'last': None}
+    orig_send = car.send
+    car.send = lambda v, w: (n.__setitem__('calls', n['calls'] + 1), orig_send(v, w))[1]
+    orig_start, orig_finish = D.Program.start, D.Program.finish
+    monkeypatch.setattr(D.Program, 'start', lambda self, ctx: (n.__setitem__('first', n['calls']), orig_start(self, ctx))[1])
+    monkeypatch.setattr(D.Program, 'finish', lambda self, ctx, why: (n.__setitem__('last', n['calls']), orig_finish(self, ctx, why))[1])
+    runtime.run('tools.imu_slope', sim=True, record_bag=False, fast=True, view_port=None, car=car)
     # giữa bắt đầu và kết thúc chỉ được có lệnh DỪNG (v = 0) lúc hết giờ, không có lệnh chạy nào
-    assert n['dau'] is not None and 0 <= n['cuoi'] - n['dau'] <= 1
-    assert abs(xe.x) < 0.01                                          # xe không tự đi
+    assert n['first'] is not None and 0 <= n['last'] - n['first'] <= 1
+    assert abs(car.x) < 0.01                                          # xe không tự đi

@@ -5,9 +5,9 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core import runtime  # noqa: E402
-from core.simulator import XeGiaLap  # noqa: E402
-from tools import imu_slope as D  # noqa: E402
+from core import runtime           # noqa: E402
+from core.simulator import SimCar  # noqa: E402
+from tools import imu_slope as D   # noqa: E402
 
 
 def _profile():
@@ -18,26 +18,26 @@ def _profile():
     return t, t * 0.2, p
 
 
-def test_chia_phan_dung_thu_tu_va_so_do():
-    t, qd, p = _profile()
-    nhan = D.chia_phan(p)
-    thu_tu = [n for i, n in enumerate(nhan) if i == 0 or n != nhan[i - 1]]
-    assert thu_tu == ['PHANG', 'LEN', 'GIUA', 'XUONG', 'SAU']
-    st = D.thong_ke(t, qd, p, nhan)
-    assert abs(st['LEN']['tv'] - 1.2) < 0.15 and abs(st['XUONG']['tv'] + 1.2) < 0.15
-    assert abs(st['GIUA']['tv']) < 0.3 and abs(st['PHANG']['tv']) < 0.15
+def test_split_phases_order_and_numbers():
+    t, dist, p = _profile()
+    labels = D.split_phases(p)
+    order = [n for i, n in enumerate(labels) if i == 0 or n != labels[i - 1]]
+    assert order == ['FLAT', 'UP', 'MIDDLE', 'DOWN', 'AFTER']
+    stats = D.summarize(t, dist, p, labels)
+    assert abs(stats['UP']['tv'] - 1.2) < 0.15 and abs(stats['DOWN']['tv'] + 1.2) < 0.15
+    assert abs(stats['MIDDLE']['tv']) < 0.3 and abs(stats['FLAT']['tv']) < 0.15
 
 
-def test_goi_y_nam_giua_cac_phan():
-    t, qd, p = _profile()
-    gy = {ten: gt for ten, _, gt, _ in D.goi_y(D.thong_ke(t, qd, p, D.chia_phan(p)))}
-    assert 0.3 < gy['DOC_LEN_DO'] < 1.0                # trên nhiễu phẳng, dưới dốc lên (~1,2)
-    assert 0.1 < gy['DOC_DINH_DO'] < 0.9
-    assert -1.0 < gy['DOC_XUONG_DO'] < -0.1
+def test_hints_fall_between_phases():
+    t, dist, p = _profile()
+    gy = {name: gt for name, _, gt, _ in D.hint(D.summarize(t, dist, p, D.split_phases(p)))}
+    assert 0.3 < gy['SLOPE_UP_DEG'] < 1.0                # trên nhiễu phẳng, dưới dốc lên (~1,2)
+    assert 0.1 < gy['CREST_DEG'] < 0.9
+    assert -1.0 < gy['SLOPE_DOWN_DEG'] < -0.1
 
 
-def test_xe_gia_lap_tu_chay_qua_doc_toi_ham():
-    xe = XeGiaLap(can_camera=False, nhanh=True, co_nguoi=False, doc_len=1.3, doc_xuong=-1.2)
-    ma, ctx = runtime.chay('tools.imu_slope', gia_lap=True, ghi_bag=False, nhanh=True, xem_cong=None, xe=xe)
-    assert ctx.du_lieu['lich_su'][-1][1].startswith('vào hầm'), ctx.du_lieu['lich_su']
-    assert xe.va_cham is None
+def test_sim_car_drives_over_ramp_to_tunnel():
+    car = SimCar(need_camera=False, fast=True, has_pedestrian=False, slope_up=1.3, slope_down=-1.2)
+    code, ctx = runtime.run('tools.imu_slope', sim=True, record_bag=False, fast=True, view_port=None, car=car)
+    assert ctx.records['history'][-1][1].startswith('vào hầm'), ctx.records['history']
+    assert car.collided is None

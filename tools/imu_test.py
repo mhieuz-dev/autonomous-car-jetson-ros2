@@ -4,7 +4,7 @@
   B2 (10 s) XOAY XE sang TRÁI đúng 90 độ (theo mép bàn / thước) rồi để yên -> yaw ~ +90
   B3 (10 s) để YÊN                                   -> yaw trôi < 0.5 độ
 Trang xem (http://<ip-xe>:8097) và bảng điều khiển có mô hình xe 3D xoay theo IMU.
-    bash scripts/car.sh imu_test            bash scripts/car.sh imu_test --chi-xem   (chỉ in số, không làm bước)
+    bash scripts/car.sh imu_test            bash scripts/car.sh imu_test --view-only   (chỉ in số, không làm bước)
 """
 import argparse
 import math
@@ -13,63 +13,63 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core.runtime import CongCu  # noqa: E402
-from core.log import log  # noqa: E402
+from core.runtime import Tool  # noqa: E402
+from core.log import log       # noqa: E402
 
-TRONG_LUC = (9.70, 9.95)     # m/s2 chấp nhận
-BIAS_MAX = 0.005             # rad/s
-RUNG_MAX = 0.01              # rad/s (độ lệch chuẩn gyro z khi đứng yên)
+GRAVITY = (9.70, 9.95)  # m/s2 chấp nhận
+BIAS_MAX = 0.005        # rad/s
+JITTER_MAX = 0.01       # rad/s (độ lệch chuẩn gyro z khi đứng yên)
 
 
-def dat(ok):
+def verdict(ok):
     return 'ĐẠT' if ok else 'KHÔNG ĐẠT'
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument('--gia-lap', action='store_true')
-    ap.add_argument('--chi-xem', action='store_true', help='chỉ in số liên tục, không làm 3 bước')
-    a = ap.parse_args()
-    with CongCu('imu_test', gia_lap=a.gia_lap) as c:
-        imu, so = c.imu, c.so_imu
-        ket = [('Trọng lực', f'{so["trong_luc"]:.2f} m/s2', TRONG_LUC[0] <= so['trong_luc'] <= TRONG_LUC[1]),
-               ('Bias gyro z', f'{so["bias_gz"]:+.4f} rad/s', abs(so['bias_gz']) < BIAS_MAX),
-               ('Rung gyro z', f'{so["rung_gz"]:.4f} rad/s', so['rung_gz'] < RUNG_MAX)]
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('--sim', action='store_true')
+    parser.add_argument('--view-only', action='store_true', help='chỉ in số liên tục, không làm 3 bước')
+    a = parser.parse_args()
+    with Tool('imu_test', sim=a.sim) as c:
+        imu, count = c.imu, c.imu_stats
+        checks = [('Trọng lực', f'{count["gravity"]:.2f} m/s2', GRAVITY[0] <= count['gravity'] <= GRAVITY[1]),
+               ('Bias gyro z', f'{count["bias_gz"]:+.4f} rad/s', abs(count['bias_gz']) < BIAS_MAX),
+               ('Rung gyro z', f'{count["jitter_gz"]:.4f} rad/s', count['jitter_gz'] < JITTER_MAX)]
 
-        def cho(giay, chu):
-            t0, cuoi, mx = time.monotonic(), -1, -1e9
-            while time.monotonic() - t0 < giay and c.dang_chay():
-                c.xe.ngu(0.05)
+        def wait(seconds, text):
+            t0, last, mx = time.monotonic(), -1, -1e9
+            while time.monotonic() - t0 < seconds and c.running():
+                c.car.sleep(0.05)
                 mx = max(mx, math.degrees(imu.pitch))
-                con = int(giay - (time.monotonic() - t0))
-                if con != cuoi:
-                    cuoi = con
-                    log(f'{chu} | còn {con:2d} s | pitch {math.degrees(imu.pitch):+5.1f}  '
+                left_s = int(seconds - (time.monotonic() - t0))
+                if left_s != last:
+                    last = left_s
+                    log(f'{text} | còn {left_s:2d} s | pitch {math.degrees(imu.pitch):+5.1f}  '
                         f'roll {math.degrees(imu.roll):+5.1f}  yaw {math.degrees(imu.yaw):+6.1f}')
-                if c.xem:
-                    c.xem.cap_nhat(chuong_trinh='imu_test', yaw=round(math.degrees(imu.yaw), 1),
+                if c.viewer:
+                    c.viewer.update(program='imu_test', yaw=round(math.degrees(imu.yaw), 1),
                                    pitch=round(math.degrees(imu.pitch), 2), roll=round(math.degrees(imu.roll), 2),
-                                   chi_tiet=chu)
+                                   detail=text)
             return mx
 
-        if a.chi_xem:
-            cho(1e9, 'xem IMU')
+        if a.view_only:
+            wait(1e9, 'xem IMU')
             return
-        mx = cho(8, 'B1: NÂNG MŨI XE lên rồi đặt xuống')
-        ket.append(('Dấu pitch (nâng mũi -> dương)', f'max {mx:+.1f} độ', mx > 5.0))
-        cho(10, 'B2: XOAY XE sang TRÁI 90 độ rồi để yên')
+        mx = wait(8, 'B1: NÂNG MŨI XE lên rồi đặt xuống')
+        checks.append(('Dấu pitch (nâng mũi -> dương)', f'max {mx:+.1f} độ', mx > 5.0))
+        wait(10, 'B2: XOAY XE sang TRÁI 90 độ rồi để yên')
         yaw2 = math.degrees(imu.yaw)
-        ket.append(('Xoay trái 90 độ', f'yaw {yaw2:+.1f} độ', 85.0 <= yaw2 <= 95.0))
-        cho(10, 'B3: để YÊN')
-        troi = math.degrees(imu.yaw) - yaw2
-        ket.append(('Trôi yaw 10 s', f'{troi:+.2f} độ', abs(troi) < 0.5))
+        checks.append(('Xoay trái 90 độ', f'yaw {yaw2:+.1f} độ', 85.0 <= yaw2 <= 95.0))
+        wait(10, 'B3: để YÊN')
+        drift = math.degrees(imu.yaw) - yaw2
+        checks.append(('Trôi yaw 10 s', f'{drift:+.2f} độ', abs(drift) < 0.5))
         log('================ KẾT QUẢ IMU ================')
-        for ten, gt, ok in ket:
-            log(f'{ten:32s} {gt:22s} {dat(ok)}')
+        for name, gt, ok in checks:
+            log(f'{name:32s} {gt:22s} {verdict(ok)}')
         if mx <= 0:
-            log('=> pitch ÂM khi nâng mũi: sửa DAU_PITCH = -1.0 trong core/imu.py')
+            log('=> pitch ÂM khi nâng mũi: sửa PITCH_SIGN = -1.0 trong core/imu.py')
         log('Chấm xong. Tiếp tục phát IMU TRỰC TIẾP lên mô hình xe 3D (nghiêng / xoay xe thử). Ctrl+C hoặc DỪNG để thoát.')
-        cho(1e9, 'IMU trực tiếp')
+        wait(1e9, 'IMU trực tiếp')
 
 
 if __name__ == '__main__':

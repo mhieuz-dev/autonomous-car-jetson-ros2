@@ -20,7 +20,7 @@ class Scan:
     t: float = 0.0
 
 
-def goc_tia(scan):
+def ray_angles(scan):
     """Góc (rad, [-pi, pi]) của từng tia."""
     n = len(scan.ranges)
     inc = scan.angle_increment if scan.angle_increment else 2 * math.pi / n
@@ -73,7 +73,7 @@ def sector_far(scan, lo_deg, hi_deg, cap=3.0):
     """Phân vị 80 của khoảng cách giữa hai góc; không có tia về thì tính là cap."""
     if scan is None or len(scan.ranges) == 0:
         return 0.0
-    ang = np.degrees(goc_tia(scan))
+    ang = np.degrees(ray_angles(scan))
     r = np.asarray(scan.ranges, float)
     m = (ang >= lo_deg) & (ang <= hi_deg) & ~np.isnan(r)
     if not m.any():
@@ -86,7 +86,7 @@ def sector_far(scan, lo_deg, hi_deg, cap=3.0):
 def wall_points(scan, lo_deg, hi_deg, r_min, r_max):
     if scan is None:
         return np.empty((0, 2))
-    ang = goc_tia(scan)
+    ang = ray_angles(scan)
     deg = np.degrees(ang)
     r = np.asarray(scan.ranges, float)
     m = (r > r_min) & (r < r_max) & (deg >= lo_deg) & (deg <= hi_deg)
@@ -138,7 +138,7 @@ def straight_corridor_heading(left, right):
                       a[1] * math.cos(a[0]) + b[1] * math.cos(b[0]))
 
 
-def cong_ham(scan, p):
+def tunnel_gate(scan, p):
     """(trai, phai) nếu đang ở giữa 2 tường hầm, không thì None.
 
     p cần: SIDE_DEG, WALL_MAX, WIDTH, WIDTH_TOL.
@@ -161,7 +161,7 @@ def tunnel_pose(scan, p):
     (+ = cong trái); kappa: độ cong (1/m). Giống hệt tunnel_pose bản 04a.
     p cần thêm: WALL_FIT_MIN, WALL_FIT_MAX, WALL_FIT_MIN_PTS, PSI_MAX, KAPPA_MAX.
     """
-    gate = cong_ham(scan, p)
+    gate = tunnel_gate(scan, p)
     if gate is None:
         return None
     near_l, near_r = gate
@@ -197,31 +197,31 @@ def tunnel_pose(scan, p):
             max(-p.KAPPA_MAX, min(p.KAPPA_MAX, kappa)))
 
 
-class CuaHam:
+class TunnelBend:
     """Phản ứng khúc cua trong hầm (bản 04a `_tunnel_bend`): tường trước < BEND_FRONT
     thì chậm lại và quẹo về phía nhìn được xa hơn. Chọn phía một lần mỗi khúc cua."""
 
     def __init__(self):
-        self.phia = None
+        self.side = None
 
-    def tinh(self, scan, p, v_ham):
+    def compute(self, scan, p, v_tunnel):
         front = range_in_cone(scan, 0.0, 25.0)
         if front is None or front >= p.BEND_FRONT:
             if front is None or front >= p.BEND_FRONT + 0.10:
-                self.phia = None
+                self.side = None
             return None
-        if self.phia is None:
+        if self.side is None:
             left, right = sector_far(scan, 15.0, 75.0), sector_far(scan, -75.0, -15.0)
-            self.phia = 1.0 if left >= right else -1.0
+            self.side = 1.0 if left >= right else -1.0
         frac = max(0.0, min(1.0, (front - 0.25) / max(p.BEND_FRONT - 0.25, 1e-3)))
-        return 0.04 + (v_ham - 0.04) * frac, self.phia * p.BEND_OMEGA
+        return 0.04 + (v_tunnel - 0.04) * frac, self.side * p.BEND_OMEGA
 
 
-def diem_xy(scan, r_max=3.0):
+def points_xy(scan, r_max=3.0):
     """Mọi điểm LiDAR (x trước, y trái) trong bán kính r_max, để vẽ."""
     if scan is None:
         return np.empty((0, 2))
-    a = goc_tia(scan)
+    a = ray_angles(scan)
     r = np.asarray(scan.ranges, float)
     m = np.isfinite(r) & (r > scan.range_min) & (r < r_max)
     return np.column_stack([r[m] * np.cos(a[m]), r[m] * np.sin(a[m])])

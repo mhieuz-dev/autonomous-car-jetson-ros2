@@ -1,4 +1,4 @@
-"""Nhận đèn giao thông bằng model YOLO11n `models/best.onnx` (14 lớp, có 'den xanh').
+"""Nhận đèn giao thông bằng model YOLO11n `models/best.onnx` (14 lớp, có 'green_light').
 
 ONNX chỉ là file model trung gian. Để chạy nhanh trên một card NVIDIA, build
 ra file engine TensorRT NGAY TRÊN MÁY ĐÓ (engine gắn với loại GPU + bản TensorRT):
@@ -14,69 +14,69 @@ import numpy as np
 
 from . import settings
 
-TEN_LOP = {0: 'bien cao toc', 1: 'bien co doc', 2: 'bien do lan xe bus', 3: 'bien het cao toc',
-           4: 'bien vao ham', 5: 'den do', 6: 'den vang', 7: 'den xanh', 8: 'di thang',
-           9: 'lan xe bus', 10: 'nguoi di bo', 11: 're phai', 12: 're trai', 13: 'stop'}
-CO = 640
+CLASS_NAMES = {0: 'expressway', 1: 'slope_ahead', 2: 'bus_lane_sign', 3: 'expressway_end',
+           4: 'tunnel_entrance', 5: 'red_light', 6: 'yellow_light', 7: 'green_light', 8: 'go_straight',
+           9: 'bus_lane', 10: 'pedestrian', 11: 'turn_right', 12: 'turn_left', 13: 'stop'}
+INPUT_SIZE = 640
 
 
 def letterbox(rgb):
     h, w = rgb.shape[:2]
-    k = min(CO / w, CO / h)
+    k = min(INPUT_SIZE / w, INPUT_SIZE / h)
     nw, nh = round(w * k), round(h * k)
-    trai, tren = (CO - nw) // 2, (CO - nh) // 2
-    nen = np.full((CO, CO, 3), 114, np.uint8)
-    nen[tren:tren + nh, trai:trai + nw] = cv2.resize(rgb, (nw, nh))
-    x = np.ascontiguousarray(nen.transpose(2, 0, 1)[None], dtype=np.float32) / 255.0
-    return x, k, trai, tren
+    pad_left, pad_top = (INPUT_SIZE - nw) // 2, (INPUT_SIZE - nh) // 2
+    canvas = np.full((INPUT_SIZE, INPUT_SIZE, 3), 114, np.uint8)
+    canvas[pad_top:pad_top + nh, pad_left:pad_left + nw] = cv2.resize(rgb, (nw, nh))
+    x = np.ascontiguousarray(canvas.transpose(2, 0, 1)[None], dtype=np.float32) / 255.0
+    return x, k, pad_left, pad_top
 
 
-def hau_xu_ly(out, k, trai, tren, w, h, nguong=0.25, ten_lop=TEN_LOP):
-    rows = np.asarray(out, np.float32).reshape(4 + len(ten_lop), -1).T     # (8400, 18)
-    lop = rows[:, 4:].argmax(axis=1)
-    diem = rows[np.arange(len(rows)), lop + 4]
-    m = diem >= nguong
-    rows, lop, diem = rows[m], lop[m], diem[m]
-    hop = rows[:, :4].copy()
-    hop[:, :2] -= hop[:, 2:] / 2
-    kq = []
-    for c in np.unique(lop):
-        idx = np.flatnonzero(lop == c)
-        giu = cv2.dnn.NMSBoxes(hop[idx].tolist(), diem[idx].tolist(), nguong, 0.45)
-        for j in np.asarray(giu).reshape(-1):
+def postprocess(out, k, pad_left, pad_top, w, h, thresh=0.25, class_names=CLASS_NAMES):
+    rows = np.asarray(out, np.float32).reshape(4 + len(class_names), -1).T     # (8400, 18)
+    cls_ids = rows[:, 4:].argmax(axis=1)
+    score = rows[np.arange(len(rows)), cls_ids + 4]
+    m = score >= thresh
+    rows, cls_ids, score = rows[m], cls_ids[m], score[m]
+    box = rows[:, :4].copy()
+    box[:, :2] -= box[:, 2:] / 2
+    result = []
+    for c in np.unique(cls_ids):
+        idx = np.flatnonzero(cls_ids == c)
+        keep = cv2.dnn.NMSBoxes(box[idx].tolist(), score[idx].tolist(), thresh, 0.45)
+        for j in np.asarray(keep).reshape(-1):
             i = idx[j]
-            x, y, bw, bh = hop[i]
-            xyxy = [(x - trai) / k, (y - tren) / k, (x + bw - trai) / k, (y + bh - tren) / k]
+            x, y, bw, bh = box[i]
+            xyxy = [(x - pad_left) / k, (y - pad_top) / k, (x + bw - pad_left) / k, (y + bh - pad_top) / k]
             xyxy = [float(np.clip(v, 0, w if n % 2 == 0 else h)) for n, v in enumerate(xyxy)]
-            kq.append({'ten': ten_lop.get(int(c), str(c)), 'lop': int(c),
-                       'tin': float(diem[i]), 'hop': xyxy})
-    return sorted(kq, key=lambda d: -d['tin'])
+            result.append({'name': class_names.get(int(c), str(c)), 'cls': int(c),
+                       'conf': float(score[i]), 'box': xyxy})
+    return sorted(result, key=lambda d: -d['conf'])
 
 
 class _OnnxRuntime:
-    def __init__(self, duong_dan, luong=2):
+    def __init__(self, model_path, threads=2):
         import onnxruntime as ort
-        co = ort.get_available_providers()
-        ds = [p for p in ('CUDAExecutionProvider', 'CPUExecutionProvider') if p in co]
+        size = ort.get_available_providers()
+        ds = [p for p in ('CUDAExecutionProvider', 'CPUExecutionProvider') if p in size]
         o = ort.SessionOptions()
-        o.intra_op_num_threads = luong
-        self.s = ort.InferenceSession(str(duong_dan), sess_options=o, providers=ds)
-        self.vao = self.s.get_inputs()[0].name
-        self.ten = f'onnxruntime ({self.s.get_providers()[0]})'
+        o.intra_op_num_threads = threads
+        self.s = ort.InferenceSession(str(model_path), sess_options=o, providers=ds)
+        self.inp = self.s.get_inputs()[0].name
+        self.name = f'onnxruntime ({self.s.get_providers()[0]})'
         meta = self.s.get_modelmeta().custom_metadata_map
-        self.ten_lop = ast.literal_eval(meta['names']) if 'names' in meta else TEN_LOP
+        self.class_names = ast.literal_eval(meta['names']) if 'names' in meta else CLASS_NAMES
 
-    def chay(self, x):
-        return self.s.run(None, {self.vao: x})[0]
+    def run(self, x):
+        return self.s.run(None, {self.inp: x})[0]
 
 
 class _CvDnn:
-    def __init__(self, duong_dan):
-        self.net = cv2.dnn.readNetFromONNX(str(duong_dan))
-        self.ten = f'cv2.dnn (OpenCV {cv2.__version__}, CPU)'
-        self.ten_lop = TEN_LOP
+    def __init__(self, model_path):
+        self.net = cv2.dnn.readNetFromONNX(str(model_path))
+        self.name = f'cv2.dnn (OpenCV {cv2.__version__}, CPU)'
+        self.class_names = CLASS_NAMES
 
-    def chay(self, x):
+    def run(self, x):
         self.net.setInput(x)
         return self.net.forward()
 
@@ -85,24 +85,24 @@ class _TensorRT:
     """Gọi máy chủ TensorRT trên Jetson (tools/trt_server.py chạy NGOÀI container, GPU, models/best.engine)
     qua TCP 127.0.0.1:8095. Container không có TensorRT cho python nên không nạp engine trực tiếp được."""
 
-    CONG = 8095
+    PORT = 8095
 
-    def __init__(self, cho_giay=15.0):     # lần đầu máy chủ nạp engine mất ~8 s
+    def __init__(self, wait_s=15.0):     # lần đầu máy chủ nạp engine mất ~8 s
         import socket
         t = time.monotonic()
         while True:
             try:
-                self.s = socket.create_connection(('127.0.0.1', self.CONG), timeout=3.0)
+                self.s = socket.create_connection(('127.0.0.1', self.PORT), timeout=3.0)
                 break
             except OSError:
-                if time.monotonic() - t > cho_giay:
+                if time.monotonic() - t > wait_s:
                     raise ConnectionError('không nối được máy chủ TensorRT 127.0.0.1:8095 (scripts/car.sh tự bật tools/trt_server.py)')
                 time.sleep(0.5)
         self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.ten = 'TensorRT GPU (best.engine, máy chủ trên Jetson)'
-        self.ten_lop = TEN_LOP
+        self.name = 'TensorRT GPU (best.engine, máy chủ trên Jetson)'
+        self.class_names = CLASS_NAMES
 
-    def _doc(self, n):
+    def _read(self, n):
         buf = bytearray(n)
         v = memoryview(buf)
         i = 0
@@ -113,114 +113,114 @@ class _TensorRT:
             i += k
         return buf
 
-    def chay(self, x):
+    def run(self, x):
         import struct
         u8 = np.ascontiguousarray((x[0] * 255.0 + 0.5).astype(np.uint8))      # CHW 3x640x640
         self.s.sendall(struct.pack('<I', u8.nbytes) + u8.tobytes())
-        n = struct.unpack('<I', self._doc(4))[0]
-        return np.frombuffer(self._doc(n), np.float32).reshape(1, 4 + len(TEN_LOP), -1)
+        n = struct.unpack('<I', self._read(4))[0]
+        return np.frombuffer(self._read(n), np.float32).reshape(1, 4 + len(CLASS_NAMES), -1)
 
 
-class NhanDen:
-    def __init__(self, thu=('tensorrt', 'onnxruntime', 'cv2'), nguong=0.25, luong=2):
-        self.loi = []
-        self.bo = None
-        self.nguong = nguong
-        for ten in thu:
+class Detector:
+    def __init__(self, try_order=('tensorrt', 'onnxruntime', 'cv2'), thresh=0.25, threads=2):
+        self.error = []
+        self.backend = None
+        self.thresh = thresh
+        for name in try_order:
             try:
-                if ten == 'tensorrt':
+                if name == 'tensorrt':
                     if not settings.MODEL_ENGINE.exists():
                         raise FileNotFoundError('chưa có models/best.engine (build bằng trtexec)')
-                    self.bo = _TensorRT()
-                elif ten == 'onnxruntime':
-                    self.bo = _OnnxRuntime(settings.MODEL_ONNX, luong)
-                elif ten == 'cv2':
-                    self.bo = _CvDnn(settings.MODEL_ONNX)
-                    self.bo.chay(letterbox(np.zeros((480, 640, 3), np.uint8))[0])   # thử 1 lần
+                    self.backend = _TensorRT()
+                elif name == 'onnxruntime':
+                    self.backend = _OnnxRuntime(settings.MODEL_ONNX, threads)
+                elif name == 'cv2':
+                    self.backend = _CvDnn(settings.MODEL_ONNX)
+                    self.backend.run(letterbox(np.zeros((480, 640, 3), np.uint8))[0])   # thử 1 lần
                 break
             except Exception as e:      # noqa: BLE001 - ghi lại để báo cho người dùng
-                self.loi.append(f'{ten}: {str(e).splitlines()[0][:120]}')
-                self.bo = None
-        self.ten = self.bo.ten if self.bo else 'KHÔNG CÓ'
+                self.error.append(f'{name}: {str(e).splitlines()[0][:120]}')
+                self.backend = None
+        self.name = self.backend.name if self.backend else 'KHÔNG CÓ'
 
     @property
-    def san_sang(self):
-        return self.bo is not None
+    def ready(self):
+        return self.backend is not None
 
-    def nhan(self, bgr):
-        """-> (danh sách {'ten','tin','hop'}, mili giây)."""
+    def detect(self, bgr):
+        """-> (danh sách {'name','conf','box'}, mili giây)."""
         t = time.monotonic()
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-        x, k, trai, tren = letterbox(rgb)
-        out = self.bo.chay(x)
+        x, k, pad_left, pad_top = letterbox(rgb)
+        out = self.backend.run(x)
         h, w = bgr.shape[:2]
-        kq = hau_xu_ly(out, k, trai, tren, w, h, self.nguong, self.bo.ten_lop)
-        return kq, (time.monotonic() - t) * 1000
+        result = postprocess(out, k, pad_left, pad_top, w, h, self.thresh, self.backend.class_names)
+        return result, (time.monotonic() - t) * 1000
 
 
-def cat_vung(bgr, vung):
+def crop_zone(bgr, zone):
     """Cắt vùng đặt đèn (x1, y1, x2, y2) trên ảnh gốc. vung = None -> cả ảnh."""
-    if not vung:
+    if not zone:
         return bgr, (0, 0)
-    x1, y1, x2, y2 = [int(v) for v in vung]
+    x1, y1, x2, y2 = [int(v) for v in zone]
     return bgr[max(0, y1):y2, max(0, x1):x2], (max(0, x1), max(0, y1))
 
 
-def ve_ket_qua(bgr, kq, goc=(0, 0), vung=None, chi_vung=False):
-    """chi_vung=True: trả riêng phần ảnh trong `vung` (bỏ hẳn phần ngoài ROI)."""
+def draw_detections(bgr, result, origin=(0, 0), zone=None, zone_only=False):
+    """zone_only=True: trả riêng phần ảnh trong `zone` (bỏ hẳn phần ngoài ROI)."""
     img = bgr.copy()
-    if vung:
-        cv2.rectangle(img, tuple(int(v) for v in vung[:2]), tuple(int(v) for v in vung[2:]), (255, 255, 0), 1)
-    mau = {'den xanh': (0, 255, 0), 'den do': (0, 0, 255), 'den vang': (0, 255, 255),
-           'stop': (60, 60, 255), 'nguoi di bo': (255, 0, 255), 'bien vao ham': (0, 200, 255),
-           'bien co doc': (255, 200, 0), 're trai': (255, 120, 0), 're phai': (255, 120, 0),
-           'di thang': (255, 120, 0), 'lan xe bus': (0, 160, 0), 'bien do lan xe bus': (0, 160, 0),
-           'bien cao toc': (200, 200, 200), 'bien het cao toc': (200, 200, 200)}
-    for d in kq:
-        x1, y1, x2, y2 = d['hop']
-        p1 = (int(x1 + goc[0]), int(y1 + goc[1]))
-        p2 = (int(x2 + goc[0]), int(y2 + goc[1]))
-        c = mau.get(d['ten'], (255, 255, 255))
+    if zone:
+        cv2.rectangle(img, tuple(int(v) for v in zone[:2]), tuple(int(v) for v in zone[2:]), (255, 255, 0), 1)
+    colors = {'green_light': (0, 255, 0), 'red_light': (0, 0, 255), 'yellow_light': (0, 255, 255),
+           'stop': (60, 60, 255), 'pedestrian': (255, 0, 255), 'tunnel_entrance': (0, 200, 255),
+           'slope_ahead': (255, 200, 0), 'turn_left': (255, 120, 0), 'turn_right': (255, 120, 0),
+           'go_straight': (255, 120, 0), 'bus_lane': (0, 160, 0), 'bus_lane_sign': (0, 160, 0),
+           'expressway': (200, 200, 200), 'expressway_end': (200, 200, 200)}
+    for d in result:
+        x1, y1, x2, y2 = d['box']
+        p1 = (int(x1 + origin[0]), int(y1 + origin[1]))
+        p2 = (int(x2 + origin[0]), int(y2 + origin[1]))
+        c = colors.get(d['name'], (255, 255, 255))
         cv2.rectangle(img, p1, p2, c, 2)
-        cv2.putText(img, f'{d["ten"]} {d["tin"]:.2f}', (p1[0], max(12, p1[1] - 4)),
+        cv2.putText(img, f'{d["name"]} {d["conf"]:.2f}', (p1[0], max(12, p1[1] - 4)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.45, c, 1)
-    if vung and chi_vung:
-        x1, y1, x2, y2 = [int(v) for v in vung]
+    if zone and zone_only:
+        x1, y1, x2, y2 = [int(v) for v in zone]
         return img[max(0, y1):y2, max(0, x1):x2]
     return img
 
 
-def mau_den_lon(ket_qua, cao_min_px, tin_min=0.5, tin_do_min=None):
-    """Màu đèn ĐỦ LỚN trong ảnh ('do' > 'vang' > 'xanh') hoặc None, và chiều cao (px) của đèn lớn nhất thấy được.
+def largest_light(result, min_height_px, min_conf=0.5, min_conf_red=None):
+    """Màu đèn ĐỦ LỚN trong ảnh ('red' > 'yellow' > 'green') hoặc None, và chiều cao (px) của đèn lớn nhất thấy được.
 
-    'Đủ gần' = khung bao quanh đèn cao >= cao_min_px (camera không đo được mét, nhưng đèn càng gần càng to).
-    tin_do_min: độ tin riêng cho đỏ/vàng (None = dùng tin_min); đặt cao hơn để đèn đỏ bớt nhạy.
-    Trả (mau, cao_lon_nhat_bat_ky, tin_cua_no)."""
-    tot = {'den do': 'do', 'den vang': 'vang', 'den xanh': 'xanh'}
-    lon, cao_max = {}, 0.0
-    for d in ket_qua:
-        m = tot.get(d['ten'])
-        if m is None or d['tin'] < (tin_do_min if m != 'xanh' and tin_do_min is not None else tin_min):
+    'Đủ gần' = khung bao quanh đèn cao >= min_height_px (camera không đo được mét, nhưng đèn càng gần càng to).
+    min_conf_red: độ tin riêng cho đỏ/vàng (None = dùng min_conf); đặt cao hơn để đèn đỏ bớt nhạy.
+    Trả (color, max_height, conf)."""
+    good = {'red_light': 'red', 'yellow_light': 'yellow', 'green_light': 'green'}
+    best_conf, max_height = {}, 0.0
+    for d in result:
+        m = good.get(d['name'])
+        if m is None or d['conf'] < (min_conf_red if m != 'green' and min_conf_red is not None else min_conf):
             continue
-        cao = d['hop'][3] - d['hop'][1]
-        cao_max = max(cao_max, cao)
-        if cao >= cao_min_px:
-            lon[m] = max(lon.get(m, 0.0), d['tin'])
-    for m in ('do', 'vang', 'xanh'):
-        if m in lon:
-            return m, cao_max, lon[m]
-    return None, cao_max, 0.0
+        height = d['box'][3] - d['box'][1]
+        max_height = max(max_height, height)
+        if height >= min_height_px:
+            best_conf[m] = max(best_conf.get(m, 0.0), d['conf'])
+    for m in ('red', 'yellow', 'green'):
+        if m in best_conf:
+            return m, max_height, best_conf[m]
+    return None, max_height, 0.0
 
 
 # ----------------------------------------------------------------- ROI biển ---
-ROI_FILE = settings.CALIB / 'sign_roi.yaml'
-ROI_MAC_DINH = {'y1': 240, 'y2': 480}      # chỉ nhận biển báo/đèn trong dải hàng pixel y1..y2 (nửa DƯỚI ảnh 480)
+ROI_FILE = settings.CONFIG_DIR / 'sign_roi.yaml'
+ROI_DEFAULT = {'y1': 240, 'y2': 480}      # chỉ nhận biển báo/đèn trong dải hàng pixel y1..y2 (nửa DƯỚI ảnh 480)
 
 
-def doc_roi(w=640, h=480):
+def read_roi(w=640, h=480):
     """(x1, y1, x2, y2) vùng nhận biển; đọc config/sign_roi.yaml (bảng điều khiển ghi), thiếu thì nửa dưới ảnh."""
     import yaml
-    d = dict(ROI_MAC_DINH)
+    d = dict(ROI_DEFAULT)
     try:
         d.update(yaml.safe_load(ROI_FILE.read_text()) or {})
     except (OSError, yaml.YAMLError):
@@ -230,32 +230,32 @@ def doc_roi(w=640, h=480):
     return 0, y1, w, y2
 
 
-def ghi_roi(y1, y2):
+def save_roi(y1, y2):
     y1, y2 = int(y1), int(y2)
     if not 0 <= y1 < y2 <= 480:
         raise ValueError(f'ROI không hợp lệ: y1={y1}, y2={y2} (cần 0 <= y1 < y2 <= 480)')
     ROI_FILE.write_text(f'# vung nhan bien bao + den (hang pixel, anh 480 cao), sua tren bang dieu khien\ny1: {y1}\ny2: {y2}\n')
 
 
-def nhan_trong_roi(bo, bgr, roi):
+def detect_in_roi(backend, bgr, roi):
     """Chạy model CHỈ trên vùng ROI, trả toạ độ khung theo ảnh gốc."""
-    cat, goc = cat_vung(bgr, roi)
-    kq, ms = bo.nhan(cat)
-    for d in kq:
-        d['hop'][0] += goc[0]
-        d['hop'][2] += goc[0]
-        d['hop'][1] += goc[1]
-        d['hop'][3] += goc[1]
-    return kq, ms
+    crop, origin = crop_zone(bgr, roi)
+    result, ms = backend.detect(crop)
+    for d in result:
+        d['box'][0] += origin[0]
+        d['box'][2] += origin[0]
+        d['box'][1] += origin[1]
+        d['box'][3] += origin[1]
+    return result, ms
 
 
-def bien_lon(ket_qua, ten, cao_min_px, tin_min=0.5):
-    """(đủ lớn?, chiều cao lớn nhất px) của biển `ten` (vd 'stop')."""
-    cao_max, ok = 0.0, False
-    for d in ket_qua:
-        if d['ten'] != ten or d['tin'] < tin_min:
+def large_sign(result, name, min_height_px, min_conf=0.5):
+    """(đủ lớn?, chiều cao lớn nhất px) của biển `name` (vd 'stop')."""
+    max_height, ok = 0.0, False
+    for d in result:
+        if d['name'] != name or d['conf'] < min_conf:
             continue
-        cao = d['hop'][3] - d['hop'][1]
-        cao_max = max(cao_max, cao)
-        ok = ok or cao >= cao_min_px
-    return ok, cao_max
+        height = d['box'][3] - d['box'][1]
+        max_height = max(max_height, height)
+        ok = ok or height >= min_height_px
+    return ok, max_height

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# CHAY_TREN: host
+# RUNS_ON: host
 """Máy chủ TensorRT chạy trên Jetson (NGOÀI container, python3.6 của JetPack): nhận ảnh đã letterbox từ container
 qua TCP 127.0.0.1:8095, chạy models/best.engine trên GPU, trả output thô [1, 18, 8400] để container hậu xử lý.
 
@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import tensorrt as trt
 
-CONG = 8095
+PORT = 8095
 ENGINE = Path(__file__).resolve().parents[1] / 'models' / 'best.engine'
 
 _cuda = ctypes.CDLL('libcudart.so.10.2')
@@ -39,12 +39,12 @@ def cuda_copy(dst, src, n, kind):
 
 
 class Engine:
-    def __init__(self, duong_dan):
+    def __init__(self, model_path):
         log = trt.Logger(trt.Logger.WARNING)
-        with open(str(duong_dan), 'rb') as f, trt.Runtime(log) as rt:
+        with open(str(model_path), 'rb') as f, trt.Runtime(log) as rt:
             self.engine = rt.deserialize_cuda_engine(f.read())
         self.ctx = self.engine.create_execution_context()
-        self.vao = self.ra = None
+        self.inp = self.out = None
         self.bind = []
         for i in range(self.engine.num_bindings):
             shape = tuple(self.engine.get_binding_shape(i))
@@ -52,20 +52,20 @@ class Engine:
             d = cuda_malloc(n)
             self.bind.append(d.value)
             if self.engine.binding_is_input(i):
-                self.vao = (d, shape, n)
+                self.inp = (d, shape, n)
             else:
-                self.ra = (d, shape, n)
+                self.out = (d, shape, n)
 
-    def chay(self, x):
+    def run(self, x):
         x = np.ascontiguousarray(x, dtype=np.float32)
-        cuda_copy(self.vao[0], x.ctypes.data_as(ctypes.c_void_p), self.vao[2], H2D)
+        cuda_copy(self.inp[0], x.ctypes.data_as(ctypes.c_void_p), self.inp[2], H2D)
         self.ctx.execute_v2(self.bind)
-        out = np.empty(self.ra[1], np.float32)
-        cuda_copy(out.ctypes.data_as(ctypes.c_void_p), self.ra[0], self.ra[2], D2H)
+        out = np.empty(self.out[1], np.float32)
+        cuda_copy(out.ctypes.data_as(ctypes.c_void_p), self.out[0], self.out[2], D2H)
         return out
 
 
-def doc_du(conn, n):
+def read_exact(conn, n):
     buf = bytearray(n)
     v = memoryview(buf)
     i = 0
@@ -83,19 +83,19 @@ def main():
         sys.exit(1)
     t = time.time()
     e = Engine(ENGINE)
-    print('[trt] nạp engine %.1f s, vào %s, ra %s' % (time.time() - t, e.vao[1], e.ra[1]), flush=True)
-    e.chay(np.zeros(e.vao[1], np.float32))          # chạy nháp cho GPU nóng máy
-    khoa = threading.Lock()                         # 1 engine dùng chung: mỗi lúc 1 lần chạy GPU
+    print('[trt] nạp engine %.1f s, vào %s, ra %s' % (time.time() - t, e.inp[1], e.out[1]), flush=True)
+    e.run(np.zeros(e.inp[1], np.float32))  # chạy nháp cho GPU nóng máy
+    mutex = threading.Lock()               # 1 engine dùng chung: mỗi lúc 1 lần chạy GPU
 
-    def phuc_vu(conn):
+    def serve_client(conn):
         """Mỗi kết nối 1 luồng: xe tự hành, onnx_test (kể cả bản cũ chưa tắt) không chặn nhau."""
         conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         try:
             while True:
-                n = struct.unpack('<I', doc_du(conn, 4))[0]
-                x = np.frombuffer(doc_du(conn, n), np.uint8).reshape(e.vao[1]).astype(np.float32) / 255.0
-                with khoa:
-                    out = e.chay(x).tobytes()
+                n = struct.unpack('<I', read_exact(conn, 4))[0]
+                x = np.frombuffer(read_exact(conn, n), np.uint8).reshape(e.inp[1]).astype(np.float32) / 255.0
+                with mutex:
+                    out = e.run(x).tobytes()
                 conn.sendall(struct.pack('<I', len(out)) + out)
         except (ConnectionError, OSError, ValueError):
             pass
@@ -104,12 +104,12 @@ def main():
 
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    srv.bind(('127.0.0.1', CONG))
+    srv.bind(('127.0.0.1', PORT))
     srv.listen(8)
-    print('[trt] sẵn sàng ở 127.0.0.1:%d' % CONG, flush=True)
+    print('[trt] sẵn sàng ở 127.0.0.1:%d' % PORT, flush=True)
     while True:
         conn, _ = srv.accept()
-        t = threading.Thread(target=phuc_vu, args=(conn,))
+        t = threading.Thread(target=serve_client, args=(conn,))
         t.daemon = True
         t.start()
 

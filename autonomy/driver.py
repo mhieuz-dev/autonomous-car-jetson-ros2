@@ -7,70 +7,70 @@ import math
 
 from core import runtime
 from core.log import log
-from core.draw import lidar_tren_xuong, luoi
+from core.draw import lidar_top_view, grid
 
 from . import params as TS
-from .behaviors import tao_ds
-from .perception import NhanBiet, nguong_nguoi
+from .behaviors import make_behaviors
+from .perception import Perception, pedestrian_threshold
 
 
-class ChuongTrinh(runtime.ChuongTrinhCoSo):
-    TEN = 'autonomy'
+class Program(runtime.ProgramBase):
+    NAME = 'autonomy'
     HZ = TS.HZ
-    CAN_CAMERA = True
+    NEED_CAMERA = True
 
     def __init__(self):
-        self.THOI_GIAN_TOI_DA = TS.THOI_GIAN_TOI_DA
-        self.nb = None
-        self.ds = []
-        self.dang = None
-        self.th = None
+        self.MAX_RUN_TIME = TS.MAX_RUN_TIME
+        self.perc = None
+        self.behaviors = []
+        self.current = None
+        self.sit = None
 
-    def bat_dau(self, ctx):
-        self.nb = NhanBiet(ctx)
-        self.ds = tao_ds(self.nb.bam)
-        ctx.du_lieu['hanh_vi'] = []         # [(giờ, tên)] mỗi lần đổi hành vi, để xem lại / test
-        ctx.du_lieu['doc'] = []             # [(giờ, trạng thái dốc)] mỗi lần đổi
-        log('Tự hành, ưu tiên: ' + ' > '.join(hv.TEN for hv in self.ds))
+    def start(self, ctx):
+        self.perc = Perception(ctx)
+        self.behaviors = make_behaviors(self.perc.tracker)
+        ctx.records['behavior'] = []  # [(giờ, tên)] mỗi lần đổi hành vi, để xem lại / test
+        ctx.records['slope'] = []     # [(giờ, trạng thái dốc)] mỗi lần đổi
+        log('Tự hành, ưu tiên: ' + ' > '.join(beh.NAME for beh in self.behaviors))
 
-    def buoc(self, ctx, dt):
-        th = self.th = self.nb.cap_nhat(ctx, dt)
-        if not ctx.du_lieu['doc'] or ctx.du_lieu['doc'][-1][1] != th.doc:
-            ctx.du_lieu['doc'].append((round(th.t, 2), th.doc))
-        muon = [hv for hv in self.ds if hv.muon(th)]     # hỏi hết để bộ đếm giờ của từng hành vi luôn đúng
-        hv = muon[0]
-        if hv is not self.dang:
-            cu = self.dang.TEN if self.dang else '-'
-            log(f'HÀNH VI: {cu} -> {hv.TEN}' + (f' ({hv.ly_do})' if hv.ly_do else ''))
-            ctx.du_lieu['hanh_vi'].append((round(th.t, 2), hv.TEN))
-            self.dang = hv
-            hv.bat_dau(th)
-        lenh = hv.lenh(th, dt)
-        if hv.ket_thuc:
-            return runtime.KetThuc(hv.ket_thuc, dung_han=True)
-        return lenh
+    def step(self, ctx, dt):
+        sit = self.sit = self.perc.update(ctx, dt)
+        if not ctx.records['slope'] or ctx.records['slope'][-1][1] != sit.slope:
+            ctx.records['slope'].append((round(sit.t, 2), sit.slope))
+        wants = [beh for beh in self.behaviors if beh.wants(sit)]     # hỏi hết để bộ đếm giờ của từng hành vi luôn đúng
+        beh = wants[0]
+        if beh is not self.current:
+            old = self.current.NAME if self.current else '-'
+            log(f'HÀNH VI: {old} -> {beh.NAME}' + (f' ({beh.reason})' if beh.reason else ''))
+            ctx.records['behavior'].append((round(sit.t, 2), beh.NAME))
+            self.current = beh
+            beh.start(sit)
+        command = beh.command(sit, dt)
+        if beh.finish:
+            return runtime.Finish(beh.finish, failed=True)
+        return command
 
-    def ket_thuc(self, ctx, ly_do):
-        if self.nb is not None:
-            self.nb.dung()
+    def finish(self, ctx, reason):
+        if self.perc is not None:
+            self.perc.stop()
 
-    def trang_thai(self):
-        th, hv = self.th, self.dang
-        if th is None or hv is None:
+    def status(self):
+        sit, beh = self.sit, self.current
+        if sit is None or beh is None:
             return ''
-        ham = 'TRONG HẦM' if th.trong_ham else f'cổng hầm {th.cong_ham}'
-        return f'{hv.TEN} | dốc {th.doc} {th.pitch_do:+.1f} độ | {ham} | {hv.mo_ta()}'
+        tunnel = 'TRONG HẦM' if sit.in_tunnel else f'cổng hầm {sit.tunnel_gate}'
+        return f'{beh.NAME} | dốc {sit.slope} {sit.pitch_deg:+.1f} độ | {tunnel} | {beh.describe()}'
 
-    def ve(self, ctx):
-        th = self.th
-        if th is None:
+    def draw(self, ctx):
+        sit = self.sit
+        if sit is None:
             return
-        d = nguong_nguoi()
-        ctx.xem.dat_anh('lidar', lidar_tren_xuong(
-            th.scan, non=[(0, math.degrees(math.atan2(TS.NUA_RONG_M, d)), d, (0, 0, 255) if th.nguoi else (0, 255, 0))],
-            chu=self.dang.TEN if self.dang else ''))
-        if ctx.xem.dang_xem('vach'):
-            anh = self.nb.bam.anh
-            ctx.xem.dat_anh('vach', luoi(list(anh.items())) if anh else luoi([('chưa có khung debug', None)]))
+        d = pedestrian_threshold()
+        ctx.viewer.set_image('lidar', lidar_top_view(
+            sit.scan, cones=[(0, math.degrees(math.atan2(TS.HALF_WIDTH_M, d)), d, (0, 0, 255) if sit.pedestrian else (0, 255, 0))],
+            text=self.current.NAME if self.current else ''))
+        if ctx.viewer.is_watched('line'):
+            image = self.perc.tracker.image
+            ctx.viewer.set_image('line', grid(list(image.items())) if image else grid([('chưa có khung debug', None)]))
         else:
-            ctx.xem.anh.setdefault('vach', None)     # chỉ báo là có hình, chưa ai xem thì khỏi vẽ
+            ctx.viewer.image.setdefault('line', None)     # chỉ báo là có hình, chưa ai xem thì khỏi vẽ

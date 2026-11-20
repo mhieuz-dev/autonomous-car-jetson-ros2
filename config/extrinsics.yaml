@@ -7,10 +7,10 @@ tvec:
 - 0.00105
 - 0.103372
 - -0.067566
-cao_m: 0.108
-truoc_tam_m: 0.0598
-lech_ngang_m: 0.0
-lan_chon:
+height_m: 0.108
+front_of_center_m: 0.0598
+lateral_m: 0.0
+chosen_runs:
 - 1
 - 2
 - 3

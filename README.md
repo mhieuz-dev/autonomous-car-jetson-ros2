@@ -54,7 +54,7 @@ Under all of them, the safety layer stops the car on `Ctrl+C`, on an emergency s
 
 **Tunnel** (`core/tunnel.py`). Two walls on both sides at a known total width for 3 scans in a row mean the car is in the tunnel; 6 scans without walls mean it has left. Inside, the car steers on the offset, heading and curvature of the corridor measured from the walls.
 
-**Lights and signs** (`core/detector.py`). A YOLO11n model with 14 classes: red, yellow and green lights, STOP, turn left, turn right, go straight, pedestrian, slope sign, tunnel entrance sign, speed limit and end of speed limit signs, and bus-lane signs. The car acts on the lights and on STOP. A detection counts only once its box is tall enough, which means it is close enough to matter.
+**Lights and signs** (`core/detector.py`). A YOLO11n model with 14 classes: red, yellow and green lights, STOP, turn left, turn right, go straight, pedestrian, slope sign, tunnel entrance sign, expressway and end of expressway signs, a bus-lane sign and the bus lane itself. The car acts on the lights and on STOP. A detection counts only once its box is tall enough, which means it is close enough to matter.
 
 ## Try it without a robot
 
@@ -67,7 +67,7 @@ uv venv .venv --python 3.10          # or: python3.10 -m venv .venv
 uv pip install -r requirements.txt   # or: .venv/bin/pip install -r requirements.txt
 
 .venv/bin/python run_car.py --sim --fast --no-record --max-time 70   # drive the track, about 7 s of wall time
-.venv/bin/python -m pytest -q                                              # 67 tests, about 40 s
+.venv/bin/python -m pytest -q                                         # 67 tests, about 30 s
 ```
 
 The log shows each decision as it happens:
@@ -91,10 +91,11 @@ The car needs a Jetson with ROS 2 Humble and a container named `crc_car` (change
 
 ```bash
 export CRC_HOST=jetson@<car-ip>
-bash scripts/car.sh run_car        # copy the code to the car and drive
-bash scripts/car.sh stop              # emergency stop
-bash scripts/car.sh list         # list every script and tool
-python3 tools/control_panel.py     # control panel on the laptop: calibration, live views, buttons
+bash scripts/car.sh run_car       # copy the code to the car and drive
+bash scripts/car.sh stop          # emergency stop
+bash scripts/car.sh pull          # bring the logs and ROS bags back to the laptop
+bash scripts/car.sh list          # list every script and tool
+python3 tools/control_panel.py    # control panel on the laptop: calibration, live views, buttons
 ```
 
 `Ctrl+C` while a script is running stops the car. All behaviour parameters are in `autonomy/params.py`. To use the TensorRT engine, build it once on the Jetson itself (an engine only runs on the machine that built it):
@@ -105,18 +106,21 @@ python3 tools/control_panel.py     # control panel on the laptop: calibration, l
 
 ## Repository layout
 
-| Path | Content |
-|---|---|
-| `run_car.py` | Entry point of the autonomous car |
-| `autonomy/` | Perception (`perception.py`), behaviours (`behaviors.py`), the decision loop (`driver.py`) and all behaviour parameters (`params.py`) |
-| `core/` | Shared code: lane detector, camera and bird's eye, YOLO inference, LiDAR and tunnel, IMU, PID, run frame and safety layer, simulator, logging |
-| `tools/` | Single-purpose tools: sensor tests, slope measurement, PID test, line debug view, TensorRT server |
-| `config/` | Camera calibration of the car |
-| `models/best.onnx` | YOLO11n detector (14 classes, 640x640), AGPL-3.0 |
-| `tests/` | 67 tests, most of them on the simulator |
-| `scripts/car.sh`, `tools/control_panel.py` | One-command runner for the car, laptop control panel |
+```
+autonomous-car-jetson-ros2/
+├── run_car.py          entry point of the autonomous car
+├── autonomy/           perception.py, behaviors.py, driver.py (decision loop), params.py (all behaviour parameters)
+├── core/               lane detector, camera and bird's eye, YOLO inference, LiDAR and tunnel, IMU, PID,
+│                       run loop and safety layer (runtime.py), simulator, ROS 2 I/O, logging
+├── tools/              sensor tests, slope measurement, PID test, line debug view, chessboard calibration,
+│                       TensorRT server, laptop control panel (control_panel.py)
+├── config/             camera calibration (camera.yaml, extrinsics.yaml, bev.yaml), sign ROI, DDS profile
+├── models/best.onnx    YOLO11n detector (14 classes, 640x640), AGPL-3.0
+├── scripts/            car.sh (one-command runner from the laptop), in_container.sh (runs inside the car's container)
+└── tests/              67 tests, most of them on the simulator
+```
 
-Code comments and log messages are in Vietnamese, since this was written by a Vietnamese team for a Vietnamese contest. The names of files, behaviours and parameters are Vietnamese too (`autonomy` is "autonomous", `perception` is "perception", `behavior` is "behaviour", `lane_follow` is "line following").
+Code comments and log messages are in Vietnamese, since this was written by a Vietnamese team for a Vietnamese contest. File, class, function and parameter names are in English. How to calibrate the camera is described in [`config/README.md`](config/README.md).
 
 ## What changed since the contest
 
@@ -129,7 +133,7 @@ Code comments and log messages are in Vietnamese, since this was written by a Vi
 | Red light timeout | Stops again at the next step if the light is still red | Ignores lights for 5 s after giving up |
 | After the first STOP sign past the tunnel | Replays a path recorded by pushing the car by hand | Follows the lane, no recorded path |
 
-The lane detector, the tunnel steering law, the YOLO model and the TensorRT pipeline are the same code that ran in the contest.
+The lane detector, the tunnel steering law, the YOLO model and the TensorRT pipeline are the same code that ran in the contest. The contest version still uses the original Vietnamese file and variable names.
 
 ## Limits worth knowing
 

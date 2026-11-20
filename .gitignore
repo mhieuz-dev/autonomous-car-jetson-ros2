@@ -7,9 +7,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
-# Log, bag, anh calib chup tren xe (keo ve bang `chay.sh keo`)
+# Log, bag, anh calib chup tren xe (keo ve bang `scripts/car.sh keo`)
 logs/
-calib_moi/
+calib_new/
 
 # Tai lieu: chi giu .tex, PDF va file phu sinh lai duoc
 docs/*.pdf

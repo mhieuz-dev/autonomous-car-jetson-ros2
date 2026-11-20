@@ -26,10 +26,10 @@ flowchart LR
     LIDAR[LiDAR] --> NB
     IMU[IMU] --> NB
     ODOM[Odometry] --> NB
-    NB["Perception<br>tu_hanh/nhan_biet.py"] --> TH["Situation<br>slope, tunnel, pedestrian,<br>light, signs, lane"]
-    TH --> HV["Behaviours, in priority order<br>tu_hanh/hanh_vi.py"]
+    NB["Perception<br>autonomy/perception.py"] --> TH["Situation<br>slope, tunnel, pedestrian,<br>light, signs, lane"]
+    TH --> HV["Behaviours, in priority order<br>autonomy/behaviors.py"]
     HV -->|"first one that<br>wants control"| CMD["Speed and<br>turn rate"]
-    CMD --> SAFE["Safety layer<br>chung/khung.py"] --> CAR[Motors]
+    CMD --> SAFE["Safety layer<br>core/runtime.py"] --> CAR[Motors]
 ```
 
 Every behaviour is asked at every step whether it needs control, even when a higher one is driving, so its timers stay correct. The first behaviour that says yes produces the command:
@@ -48,13 +48,13 @@ Under all of them, the safety layer stops the car on `Ctrl+C`, on an emergency s
 
 ## How the car sees
 
-**Lane** (`chung/lane.py`, `chung/bam_vach.py`). The camera image is warped to a bird's eye view with a precomputed lookup table. The right line is isolated with a top-hat filter, a threshold, morphology and a connected-component choice, then a quadratic curve is fitted and filtered over time with a Kalman filter. When no plausible line is found, the curve is moved with odometry and the IMU instead of being dropped, which keeps the car on bends where the line briefly leaves the image.
+**Lane** (`core/lane.py`, `core/lane_follow.py`). The camera image is warped to a bird's eye view with a precomputed lookup table. The right line is isolated with a top-hat filter, a threshold, morphology and a connected-component choice, then a quadratic curve is fitted and filtered over time with a Kalman filter. When no plausible line is found, the curve is moved with odometry and the IMU instead of being dropped, which keeps the car on bends where the line briefly leaves the image.
 
-**Ramp** (`tu_hanh/nhan_biet.py`). A state machine on the pitch angle goes flat, up, crest, down, flat. Each change needs its condition to hold for 0.5 to 0.8 s, so bumps do not trigger it. The car also lifts its nose when it drives fast (about 30 v² degrees, measured on the real car), and this part is subtracted before the pitch is compared with the thresholds.
+**Ramp** (`autonomy/perception.py`). A state machine on the pitch angle goes flat, up, crest, down, flat. Each change needs its condition to hold for 0.5 to 0.8 s, so bumps do not trigger it. The car also lifts its nose when it drives fast (about 30 v² degrees, measured on the real car), and this part is subtracted before the pitch is compared with the thresholds.
 
-**Tunnel** (`chung/ham.py`). Two walls on both sides at a known total width for 3 scans in a row mean the car is in the tunnel; 6 scans without walls mean it has left. Inside, the car steers on the offset, heading and curvature of the corridor measured from the walls.
+**Tunnel** (`core/tunnel.py`). Two walls on both sides at a known total width for 3 scans in a row mean the car is in the tunnel; 6 scans without walls mean it has left. Inside, the car steers on the offset, heading and curvature of the corridor measured from the walls.
 
-**Lights and signs** (`chung/den_onnx.py`). A YOLO11n model with 14 classes: red, yellow and green lights, STOP, turn left, turn right, go straight, pedestrian, slope sign, tunnel entrance sign, speed limit and end of speed limit signs, and bus-lane signs. The car acts on the lights and on STOP. A detection counts only once its box is tall enough, which means it is close enough to matter.
+**Lights and signs** (`core/detector.py`). A YOLO11n model with 14 classes: red, yellow and green lights, STOP, turn left, turn right, go straight, pedestrian, slope sign, tunnel entrance sign, speed limit and end of speed limit signs, and bus-lane signs. The car acts on the lights and on STOP. A detection counts only once its box is tall enough, which means it is close enough to matter.
 
 ## Try it without a robot
 
@@ -66,7 +66,7 @@ cd autonomous-car-jetson-ros2
 uv venv .venv --python 3.10          # or: python3.10 -m venv .venv
 uv pip install -r requirements.txt   # or: .venv/bin/pip install -r requirements.txt
 
-.venv/bin/python xe_tu_hanh.py --gia-lap --nhanh --khong-ghi --toi-da 70   # drive the track, about 7 s of wall time
+.venv/bin/python run_car.py --gia-lap --nhanh --khong-ghi --toi-da 70   # drive the track, about 7 s of wall time
 .venv/bin/python -m pytest -q                                              # 67 tests, about 40 s
 ```
 
@@ -87,17 +87,17 @@ HÀNH VI: ra_ham -> bam_vach
 
 ## Running on the car
 
-The car needs a Jetson with ROS 2 Humble and a container named `crc_car` (change it with `CRC_CONTAINER`). Set the car's address once, then use `chay.sh`:
+The car needs a Jetson with ROS 2 Humble and a container named `crc_car` (change it with `CRC_CONTAINER`). Set the car's address once, then use `scripts/car.sh`:
 
 ```bash
 export CRC_HOST=jetson@<car-ip>
-bash chay.sh xe_tu_hanh        # copy the code to the car and drive
-bash chay.sh dung              # emergency stop
-bash chay.sh danh_sach         # list every script and tool
-python3 bang_dieu_khien.py     # control panel on the laptop: calibration, live views, buttons
+bash scripts/car.sh run_car        # copy the code to the car and drive
+bash scripts/car.sh dung              # emergency stop
+bash scripts/car.sh danh_sach         # list every script and tool
+python3 tools/control_panel.py     # control panel on the laptop: calibration, live views, buttons
 ```
 
-`Ctrl+C` while a script is running stops the car. All behaviour parameters are in `tu_hanh/tham_so.py`. To use the TensorRT engine, build it once on the Jetson itself (an engine only runs on the machine that built it):
+`Ctrl+C` while a script is running stops the car. All behaviour parameters are in `autonomy/params.py`. To use the TensorRT engine, build it once on the Jetson itself (an engine only runs on the machine that built it):
 
 ```bash
 /usr/src/tensorrt/bin/trtexec --onnx=models/best.onnx --saveEngine=models/best.engine --fp16
@@ -107,16 +107,16 @@ python3 bang_dieu_khien.py     # control panel on the laptop: calibration, live 
 
 | Path | Content |
 |---|---|
-| `xe_tu_hanh.py` | Entry point of the autonomous car |
-| `tu_hanh/` | Perception (`nhan_biet.py`), behaviours (`hanh_vi.py`), the decision loop (`lai_xe.py`) and all behaviour parameters (`tham_so.py`) |
-| `chung/` | Shared code: lane detector, camera and bird's eye, YOLO inference, LiDAR and tunnel, IMU, PID, run frame and safety layer, simulator, logging |
-| `cong_cu/` | Single-purpose tools: sensor tests, slope measurement, PID test, line debug view, TensorRT server |
-| `calib/` | Camera calibration of the car |
+| `run_car.py` | Entry point of the autonomous car |
+| `autonomy/` | Perception (`perception.py`), behaviours (`behaviors.py`), the decision loop (`driver.py`) and all behaviour parameters (`params.py`) |
+| `core/` | Shared code: lane detector, camera and bird's eye, YOLO inference, LiDAR and tunnel, IMU, PID, run frame and safety layer, simulator, logging |
+| `tools/` | Single-purpose tools: sensor tests, slope measurement, PID test, line debug view, TensorRT server |
+| `config/` | Camera calibration of the car |
 | `models/best.onnx` | YOLO11n detector (14 classes, 640x640), AGPL-3.0 |
 | `tests/` | 67 tests, most of them on the simulator |
-| `chay.sh`, `bang_dieu_khien.py` | One-command runner for the car, laptop control panel |
+| `scripts/car.sh`, `tools/control_panel.py` | One-command runner for the car, laptop control panel |
 
-Code comments and log messages are in Vietnamese, since this was written by a Vietnamese team for a Vietnamese contest. The names of files, behaviours and parameters are Vietnamese too (`tu_hanh` is "autonomous", `nhan_biet` is "perception", `hanh_vi` is "behaviour", `bam_vach` is "line following").
+Code comments and log messages are in Vietnamese, since this was written by a Vietnamese team for a Vietnamese contest. The names of files, behaviours and parameters are Vietnamese too (`autonomy` is "autonomous", `perception` is "perception", `hanh_vi` is "behaviour", `bam_vach` is "line following").
 
 ## What changed since the contest
 
@@ -133,7 +133,7 @@ The lane detector, the tunnel steering law, the YOLO model and the TensorRT pipe
 
 ## Limits worth knowing
 
-- `main` has only run in the simulator so far. The contest version is the one that drove the real track. Parameters marked "chưa chỉnh trên xe" (not tuned on the car) in `tu_hanh/tham_so.py` still need tuning on the real car.
+- `main` has only run in the simulator so far. The contest version is the one that drove the real track. Parameters marked "chưa chỉnh trên xe" (not tuned on the car) in `autonomy/params.py` still need tuning on the real car.
 - The simulator renders a clean synthetic track. It checks the logic and the timing, not how the vision behaves in real light.
 - The detector was trained on a dataset of real photos that is not part of this repository, so the model cannot be retrained from what is here.
 

@@ -7,12 +7,12 @@ from types import SimpleNamespace
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from chung.imu import IMU  # noqa: E402
-from chung.lidar import Scan, cong_ham, range_in_cone, tunnel_pose  # noqa: E402
-from chung import ham  # noqa: E402
-from chung.den_onnx import mau_den_lon  # noqa: E402
-from chung.pid import GioiHan, GiuHuong, VongGyro, goc  # noqa: E402
-from tu_hanh.nhan_biet import co_nguoi, nguong_nguoi  # noqa: E402
+from core.imu import IMU  # noqa: E402
+from core.lidar import Scan, cong_ham, range_in_cone, tunnel_pose  # noqa: E402
+from core import tunnel  # noqa: E402
+from core.detector import mau_den_lon  # noqa: E402
+from core.pid import GioiHan, GiuHuong, VongGyro, goc  # noqa: E402
+from autonomy.perception import co_nguoi, nguong_nguoi  # noqa: E402
 
 G = 9.81
 
@@ -111,16 +111,16 @@ def test_cong_ham_va_tunnel_pose_thang():
     # Xe lệch phải 0.15 m trong hành lang thẳng rộng 0.77
     tuong = [(-1.0, 0.385 + 0.15, 1.5, 0.385 + 0.15), (-1.0, -0.385 + 0.15, 1.5, -0.385 + 0.15)]
     scan = _scan_tu_tuong(tuong)
-    assert cong_ham(scan, ham.P) is not None
-    off, psi, kappa = tunnel_pose(scan, ham.P)
+    assert cong_ham(scan, tunnel.P) is not None
+    off, psi, kappa = tunnel_pose(scan, tunnel.P)
     assert abs(off - 0.15) < 0.01 and abs(psi) < 0.02 and kappa == 0.0
-    w = ham.lenh_lai(off, psi, kappa, 0.15)
+    w = tunnel.lenh_lai(off, psi, kappa, 0.15)
     assert w > 0                              # tâm hầm bên trái -> quẹo trái
 
 
 def test_khong_phai_ham_khi_rong_qua():
     tuong = [(-1.0, 0.6, 1.5, 0.6), (-1.0, -0.6, 1.5, -0.6)]   # tổng 1.2 m
-    assert cong_ham(_scan_tu_tuong(tuong), ham.P) is None
+    assert cong_ham(_scan_tu_tuong(tuong), tunnel.P) is None
 
 
 def test_range_in_cone_bo_diem_le():
@@ -132,11 +132,11 @@ def test_range_in_cone_bo_diem_le():
 
 
 def test_khuc_cua_ham_quay_ve_phia_mo():
-    p = ham.P
+    p = tunnel.P
     tuong = [(0.45, -0.6, 0.45, 0.3),          # tường chắn phía trước
              (-0.5, -0.385, 0.45, -0.385),     # tường phải chạy tới góc
              (-0.5, 0.385, 0.0, 0.385)]        # bên trái mở ra phía trước
-    from chung.lidar import CuaHam
+    from core.lidar import CuaHam
     kq = CuaHam().tinh(_scan_tu_tuong(tuong), p, 0.15)
     assert kq is not None and kq[1] > 0 and kq[0] < 0.15
 

@@ -8,8 +8,8 @@ import pytest
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from chung.camera import BirdEye, Calib, ChuaCalib, tu_pitch  # noqa: E402
-from chung.camera_pose import giai_pose, pose_theo_xe  # noqa: E402
+from core.camera import BirdEye, Calib, ChuaCalib, tu_pitch  # noqa: E402
+from core.camera_pose import giai_pose, pose_theo_xe  # noqa: E402
 
 CAM = {'image_width': 640, 'image_height': 480,
        'camera_matrix': {'data': [552.83, 0, 311.43, 0, 551.9, 239.42, 0, 0, 1]},
@@ -22,7 +22,7 @@ def _dir(tmp_path, ngoai=None, cam=True):
     if cam:
         (tmp_path / 'camera.yaml').write_text(yaml.safe_dump(CAM))
     if ngoai is not None:
-        (tmp_path / 'ngoai.yaml').write_text(yaml.safe_dump(ngoai))
+        (tmp_path / 'extrinsics.yaml').write_text(yaml.safe_dump(ngoai))
     return tmp_path
 
 
@@ -35,7 +35,7 @@ def test_chua_do_birdeye_thi_bao_loi_khong_dung_so_cu(tmp_path):
     with pytest.raises(ChuaCalib, match="BIRD'S EYE"):
         Calib(_dir(tmp_path, {'cao_m': 0.11}))        # có số tay nhưng không có tư thế
     with pytest.raises(ChuaCalib, match="BIRD'S EYE"):
-        Calib(_dir(tmp_path))                          # không có ngoai.yaml
+        Calib(_dir(tmp_path))                          # không có extrinsics.yaml
 
 
 def _board(pitch_do, roll_do, x0, cao=0.11, truoc=0.05, nhieu=0.3, cols=10, rows=7, o=0.019):
@@ -76,7 +76,7 @@ def test_birdeye_ban_co_thanh_o_vuong():
     rv, tv, px, Pw = _board(12, 0.5, x0_ban, truoc=0.0)   # gốc ngay dưới camera, như lúc calib
     r = giai_pose(px, 10, 7, 0.019, K, D)
     c = Calib.tu_pose(K, D, *pose_theo_xe(r, 0.0))
-    from chung.camera_pose import goc_ban_co_theo_xe
+    from core.camera_pose import goc_ban_co_theo_xe
     x, y = goc_ban_co_theo_xe(r)
     be = BirdEye(c, x.min() - 0.03, x.max() + 0.03, y.max() + 0.03, y.min() - 0.03, 0.001, ti_le_anh=1.0)
     # ảnh giả: dán lại bàn cờ thật bằng cách chiếu ô đen/trắng theo toạ độ sàn
@@ -118,7 +118,7 @@ def _anh_ban_co_tren_san(pitch=12.0, roll=0.8, x0=0.30, cao=0.11, truoc=0.05):
 
 def _nap_cong_cu():
     import importlib.util
-    spec = importlib.util.spec_from_file_location('birdeye_banco', Path(__file__).resolve().parents[1] / 'calib/birdeye_banco.py')
+    spec = importlib.util.spec_from_file_location('birdeye_chessboard', Path(__file__).resolve().parents[1] / 'tools/birdeye_chessboard.py')
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

@@ -1,15 +1,12 @@
 """Bám vạch: dự đoán giữ độ cong, cổng vạch phải hợp lý, chạy chậm khi dự đoán, nhảy vạch thì xoay tìm lại."""
 import math
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core import lane_follow as BV  # noqa: E402
-from core import lane               # noqa: E402
-from autonomy import behaviors      # noqa: E402
+from core import lane_follow as BV
+from core import lane
+from autonomy import behaviors
 
 
 def _arc(R, x):

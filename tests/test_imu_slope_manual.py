@@ -1,11 +1,8 @@
 """imu_slope --manual: khung KHÔNG được gửi lệnh nào trong lúc ghi (để tay đẩy được bánh)."""
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core import runtime           # noqa: E402
-from core.simulator import SimCar  # noqa: E402
-from tools import imu_slope as D   # noqa: E402
+from core import runtime
+from core.simulator import SimCar
+from tools import imu_slope as D
 
 
 def test_manual_mode_sends_no_commands(monkeypatch):

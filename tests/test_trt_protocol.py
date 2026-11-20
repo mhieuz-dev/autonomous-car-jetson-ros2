@@ -2,15 +2,12 @@
 thức, kết quả nhận qua socket phải giống chạy onnxruntime trực tiếp (chỉ khác do ảnh đổi sang uint8)."""
 import socket
 import struct
-import sys
 import threading
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core import detector as D  # noqa: E402
+from core import detector as D
 
 
 def test_trt_server_protocol(monkeypatch):

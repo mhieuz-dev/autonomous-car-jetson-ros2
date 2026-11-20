@@ -1,13 +1,10 @@
 """Chặn sát mũi (mọi lúc) và gỡ kẹt trong hầm, trên xe tự hành chạy sa bàn giả."""
 import math
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core import settings          # noqa: E402
-from core.simulator import SimCar  # noqa: E402
-from test_autonomy import run      # noqa: E402
-from autonomy import params as TS  # noqa: E402
+from core import settings
+from core.simulator import SimCar
+from test_autonomy import run
+from autonomy import params as TS
 
 
 def test_nose_guard_stops_then_resumes(monkeypatch):

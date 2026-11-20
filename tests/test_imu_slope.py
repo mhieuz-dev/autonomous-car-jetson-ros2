@@ -1,13 +1,10 @@
 """imu_slope: chia phần dốc + ngưỡng gợi ý + chạy thử trên xe giả lập (dốc nhẹ ~1,2 độ như dốc thật)."""
-import sys
-from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core import runtime           # noqa: E402
-from core.simulator import SimCar  # noqa: E402
-from tools import imu_slope as D   # noqa: E402
+from core import runtime
+from core.simulator import SimCar
+from tools import imu_slope as D
 
 
 def _profile():

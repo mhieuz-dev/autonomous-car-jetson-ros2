@@ -1,12 +1,9 @@
 """Phần nhận biết dốc và thứ tự ưu tiên hành vi, không cần sa bàn giả."""
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from autonomy import params as TS  # noqa: E402
-from autonomy.behaviors import WaitPedestrian, StopAtSign, StopAtLight, DriveRamp, DriveTunnel, ExitTunnel  # noqa: E402
-from autonomy.perception import SlopeTracker, Situation  # noqa: E402
+from autonomy import params as TS
+from autonomy.behaviors import WaitPedestrian, StopAtSign, StopAtLight, DriveRamp, DriveTunnel, ExitTunnel
+from autonomy.perception import SlopeTracker, Situation
 
 
 def run_slope(seq, dt=0.05):

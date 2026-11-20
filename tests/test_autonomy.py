@@ -1,15 +1,12 @@
 """Xe tự hành trên sa bàn giả: qua hết sa bàn, đổi chỗ dốc và hầm, người đi bộ, đèn, biển STOP."""
 import math
-import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core import settings, runtime  # noqa: E402
-from core.simulator import SimCar   # noqa: E402
-from autonomy import params as TS   # noqa: E402
+from core import settings, runtime
+from core.simulator import SimCar
+from autonomy import params as TS
 
 
 def run(car=None, max_time=120.0, **track):

@@ -1,18 +1,15 @@
 """Test phần logic thuần (không cần xe, không cần ROS)."""
 import math
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core.imu import IMU                                              # noqa: E402
-from core.lidar import Scan, tunnel_gate, range_in_cone, tunnel_pose  # noqa: E402
-from core import tunnel                                               # noqa: E402
-from core.detector import largest_light                               # noqa: E402
-from core.pid import RateLimiter, HeadingHold, GyroLoop, wrap_angle   # noqa: E402
-from autonomy.perception import has_pedestrian, pedestrian_threshold  # noqa: E402
+from core.imu import IMU
+from core.lidar import Scan, tunnel_gate, range_in_cone, tunnel_pose
+from core import tunnel
+from core.detector import largest_light
+from core.pid import RateLimiter, HeadingHold, GyroLoop, wrap_angle
+from autonomy.perception import has_pedestrian, pedestrian_threshold
 
 G = 9.81
 

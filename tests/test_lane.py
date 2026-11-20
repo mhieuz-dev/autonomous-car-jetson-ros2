@@ -1,12 +1,9 @@
 """Bộ dò vạch trên ảnh sinh từ sa bàn giả (đúng calib, đúng phép chiếu)."""
 import math
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core.camera import decode_gray_half    # noqa: E402
-from core.simulator import SimCar           # noqa: E402
-from core.lane_follow import make_detector  # noqa: E402
+from core.camera import decode_gray_half
+from core.simulator import SimCar
+from core.lane_follow import make_detector
 
 CAR = SimCar(need_camera=True, fast=True)
 

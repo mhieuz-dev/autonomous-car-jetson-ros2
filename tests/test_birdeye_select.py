@@ -1,20 +1,16 @@
 """Bước 4b: tự chọn lần dùng, vùng nhìn, độ phân giải bird's eye."""
 import shutil
-import sys
-from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from core import birdeye_select as B                                 # noqa: E402
-from core import settings                                            # noqa: E402
-from core.camera import Calib, read_bev                              # noqa: E402
-from core.camera_pose import solve_pose, pose_in_car                 # noqa: E402
-from test_calib import CAM, K, D, _board_on_floor_image, _load_tool  # noqa: E402
+from core import birdeye_select as B
+from core import settings
+from core.camera import Calib, read_bev
+from core.camera_pose import solve_pose, pose_in_car
+from test_calib import CAM, K, D, _board_on_floor_image, _load_tool
 
 
 @pytest.fixture

@@ -1,11 +1,8 @@
 """Xe bị nhấc / lật (pitch quá lớn) thì imu_slope phải BỎ mẫu, không tính vào phần XUỐNG."""
 import math
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from tools import imu_slope as D  # noqa: E402
+from tools import imu_slope as D
 
 
 def _ctx(pitch_deg, dist=0.0, t=1.0):

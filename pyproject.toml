@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+# Tắt plugin pytest của ROS 2 (launch_testing, ament_*) khi chạy test trên máy đã source ROS
+addopts = "-p no:launch_testing -p no:launch_ros -p no:ament_copyright -p no:ament_flake8 -p no:ament_pep257 -p no:ament_lint"
+testpaths = ["tests"]
+pythonpath = ["."]

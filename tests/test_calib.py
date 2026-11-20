@@ -1,5 +1,4 @@
 """Calib camera mới: không có số mặc định, tư thế lấy từ bàn cờ nằm trên sàn."""
-import sys
 from pathlib import Path
 
 import cv2
@@ -7,9 +6,8 @@ import numpy as np
 import pytest
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core.camera import BirdEye, Calib, NotCalibrated, from_pitch  # noqa: E402
-from core.camera_pose import solve_pose, pose_in_car               # noqa: E402
+from core.camera import BirdEye, Calib, NotCalibrated, from_pitch
+from core.camera_pose import solve_pose, pose_in_car
 
 CAM = {'image_width': 640, 'image_height': 480,
        'camera_matrix': {'data': [552.83, 0, 311.43, 0, 551.9, 239.42, 0, 0, 1]},
